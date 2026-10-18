@@ -1,0 +1,34 @@
+# ============================================================
+# Apache Security & Configuration Rules
+# ============================================================
+
+# Disable Directory Browsing
+Options -Indexes +FollowSymLinks
+
+# Set Default Charset
+AddDefaultCharset UTF-8
+
+# Block Direct Browser Access to Sensitive Config Files & Databases
+<FilesMatch "(^\.env|composer\.(json|lock)|package(-lock)?\.json|\.(sql|sqlite|log|sh|md|yml|yaml|ini|lock))$">
+    Require all denied
+</FilesMatch>
+
+# Allow Normal Access to Application, Assets & Health Check Endpoints
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Direct Health Check Endpoints for HostForge & Load Balancers
+    RewriteRule ^(health|healthz|ping)$ healthz.php [L,QSA]
+</IfModule>
+
+# Custom HTTP Error Handlers
+ErrorDocument 400 /app/errors/400.php
+ErrorDocument 401 /app/errors/401.php
+ErrorDocument 403 /app/errors/403.php
+ErrorDocument 404 /app/errors/404.php
+ErrorDocument 500 /app/errors/500.php
+ErrorDocument 502 /app/errors/error.php?code=502
+ErrorDocument 503 /app/errors/503.php
+ErrorDocument 504 /app/errors/error.php?code=504
+

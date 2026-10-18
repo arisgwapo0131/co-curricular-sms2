@@ -1,0 +1,123 @@
+-- ============================================================
+-- Component: Organizations, Memberships & Applications
+-- File: 03_organizations_and_clubs.sql
+-- Description: Student clubs, membership rosters, and recruitment applications
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS `clubs` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `code` VARCHAR(20) NOT NULL,
+  `name` VARCHAR(150) NOT NULL,
+  `category` ENUM('Academic', 'Cultural', 'Sports', 'Advocacy', 'Religious') NOT NULL DEFAULT 'Academic',
+  `description` TEXT DEFAULT NULL,
+  `adviser_name` VARCHAR(150) DEFAULT 'Unassigned',
+  `status` ENUM('Active', 'Pending Charter', 'Suspended') NOT NULL DEFAULT 'Active',
+  `program` VARCHAR(150) DEFAULT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `deleted_at` TIMESTAMP NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_clubs_code` (`code`),
+  KEY `idx_clubs_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `club_memberships` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `club_id` INT(10) UNSIGNED NOT NULL,
+  `user_id` INT(10) UNSIGNED NOT NULL,
+  `role` VARCHAR(50) DEFAULT 'Member',
+  `status` ENUM('Active', 'Pending', 'Rejected', 'Returned') NOT NULL DEFAULT 'Pending',
+  `joined_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `approved_by` INT(10) UNSIGNED DEFAULT NULL,
+  `letter_intent` VARCHAR(255) DEFAULT NULL,
+  `letter_endorsement` VARCHAR(255) DEFAULT NULL,
+  `adviser_review` VARCHAR(50) NOT NULL DEFAULT 'Pending Adviser',
+  `ssc_review` VARCHAR(50) NOT NULL DEFAULT 'Pending SSC',
+  `review_notes` TEXT DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_club_user` (`club_id`, `user_id`),
+  KEY `idx_cm_user` (`user_id`),
+  KEY `idx_cm_club` (`club_id`),
+  CONSTRAINT `fk_cm_club` FOREIGN KEY (`club_id`) REFERENCES `clubs` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_cm_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `club_applications` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `club_id` INT(11) NOT NULL,
+  `user_id` INT(11) NOT NULL,
+  `first_name` VARCHAR(100) NOT NULL,
+  `last_name` VARCHAR(100) NOT NULL,
+  `student_id_no` VARCHAR(50) DEFAULT NULL,
+  `course` VARCHAR(150) DEFAULT NULL,
+  `year_level` VARCHAR(50) DEFAULT NULL,
+  `email` VARCHAR(150) DEFAULT NULL,
+  `phone` VARCHAR(50) DEFAULT NULL,
+  `sex` VARCHAR(20) DEFAULT NULL,
+  `dob` DATE DEFAULT NULL,
+  `address` TEXT DEFAULT NULL,
+  `motivation` TEXT DEFAULT NULL,
+  `letter_intent` VARCHAR(255) DEFAULT NULL,
+  `letter_endorsement` VARCHAR(255) DEFAULT NULL,
+  `status` ENUM('Pending', 'Approved', 'Rejected', 'Returned') DEFAULT 'Pending',
+  `rejection_reason` TEXT DEFAULT NULL,
+  `adviser_status` ENUM('Pending', 'Endorsed', 'Rejected') DEFAULT 'Pending',
+  `ssc_status` ENUM('Pending', 'Approved', 'Rejected') DEFAULT 'Pending',
+  `adviser_review` VARCHAR(50) DEFAULT 'Pending Adviser',
+  `ssc_review` VARCHAR(50) DEFAULT 'Pending SSC',
+  `review_notes` TEXT DEFAULT NULL,
+  `student_id` INT(10) UNSIGNED DEFAULT NULL,
+  `applied_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `reviewed_by` INT(11) DEFAULT NULL,
+  `reviewed_at` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_ca_club_status` (`club_id`, `status`),
+  KEY `idx_ca_user` (`user_id`),
+  CONSTRAINT `fk_ca_club` FOREIGN KEY (`club_id`) REFERENCES `clubs` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_ca_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Accredited Campus Organizations Seed (40 Clubs from SYSTEM_ACCOUNTS.md)
+INSERT INTO `clubs` (`id`, `code`, `name`, `category`, `description`, `adviser_name`, `status`, `program`) VALUES
+(1, 'CSSEC', 'Computer Science Student Exec Council', 'Academic', 'Official organization for IT students focusing on technical skill-building and innovation.', 'Prof. Alex Reyes', 'Active', 'BSCS'),
+(2, 'ACADS', 'Association of Computer Eng Driven Students', 'Academic', 'ACADS is dedicated to academic excellence among Computer Engineering students through seminars, competitions, and peer mentoring programs.', 'Prof. Mark Velo', 'Active', 'BSCpE'),
+(3, 'ACES', 'Association of Computer Engineering Students', 'Academic', 'ACES unites Computer Engineering students and promotes technical growth through workshops, laboratory enhancement campaigns, and industry visits.', 'Prof. Elena Ramos', 'Active', 'BSCpE'),
+(4, 'AISS', 'Accounting Info System Society', 'Academic', 'AISS advances accounting information literacy and bridges academic knowledge with industry technology practices in financial systems.', 'Prof. Clara Tan', 'Active', 'BSAIS'),
+(5, 'BLISS', 'Bestlink Library & Info Science Society', 'Academic', 'BLISS promotes library science excellence and information literacy across all BCP academic departments through advocacy and community service.', 'Prof. Robert Cruz', 'Active', 'BLIS'),
+(6, 'BRAVE', 'Values Education & Accountability Org', 'Academic', 'BRAVE fosters values education and responsible leadership among BCP students through community outreach and character formation programs.', 'Prof. Diana Gomez', 'Active', 'BSEd'),
+(7, 'CJSU', 'Criminal Justice Student Unit', 'Academic', 'CJSU strengthens criminal justice students through moot courts, criminology seminars, and law enforcement immersion programs.', 'Prof. Jose Mercado', 'Active', 'BSCrim'),
+(8, 'EYO', 'Entrepreyouth Organization', 'Academic', 'EYO cultivates entrepreneurial mindsets among BCP youth through business incubation workshops, trade fairs, and start-up mentorship.', 'Prof. Lisa Santos', 'Active', 'BSBA'),
+(9, 'G.A.L.A.W', 'Athletes & Leaders Wellness Assoc', 'Academic', 'Group of Athletes and Leaders Association for Wellness.', 'Prof. Manuel Cruz', 'Active', 'Institutional'),
+(10, 'GEMs', 'Guild of English Majors', 'Academic', 'English language literacy and debate.', 'Prof. Anna Reyes', 'Active', 'BSEd'),
+(11, 'GOLD', 'Guild of Officers to Lead Development', 'Academic', 'Leadership and management seminars.', 'Prof. Karen Lim', 'Active', 'Institutional'),
+(12, 'JFINEX', 'Junior Financial Executives', 'Academic', 'Financial literacy and investment seminars.', 'Prof. Manuel Cruz', 'Active', 'BSBA'),
+(13, 'HRS', 'Human Resources Society', 'Academic', 'Human resources development.', 'Prof. Alex Reyes', 'Active', 'BSBA'),
+(14, 'J.M.A', 'Junior Marketing Association', 'Academic', 'Marketing strategy and branding.', 'Prof. Sarah Mercado', 'Active', 'BSBA'),
+(15, 'LAKAS', 'Liga ng Aktibong Kabataan sa Araling Panlipunan', 'Academic', 'Social studies and leadership development.', 'Prof. Clara Tan', 'Active', 'BSEd'),
+(16, 'L.A.P.I.S', 'Leadership Assoc Program & Services', 'Academic', 'Leadership and community service.', 'Prof. Diana Gomez', 'Active', 'Institutional'),
+(17, 'LIBRO', 'Lucid of Bright & Righteous Officers', 'Academic', 'Library science development.', 'Prof. Robert Cruz', 'Active', 'BLIS'),
+(18, 'OMEGA', 'Org for Mathematics in Engineering', 'Academic', 'Engineering mathematics application.', 'Prof. Jose Mercado', 'Active', 'BSCpE'),
+(19, 'PsychSoc', 'Psychology Society', 'Academic', 'Psychology student growth and services.', 'Prof. Lisa Santos', 'Active', 'BSPsych'),
+(20, 'RSD', 'Regnum Scientiae Discipulus', 'Academic', 'Science major student development.', 'Prof. Anna Reyes', 'Active', 'Institutional'),
+(21, 'SIGMA', 'Guild for Mathematics Majors', 'Academic', 'Mathematics exploration and peer tutoring.', 'Prof. Karen Lim', 'Active', 'BSEd'),
+(22, 'TECHs', 'Tech, Exploratory & Hospitality Skills', 'Academic', 'Technology and hospitality skills development.', 'Prof. Alex Reyes', 'Active', 'BSHM'),
+(23, 'TTS', 'Tourism Student Society', 'Academic', 'Tourism industry training.', 'Prof. Sarah Mercado', 'Active', 'BSTM'),
+(24, 'WIKA', 'Wikang Filipino sa Akademya', 'Academic', 'Filipino language promotion.', 'Prof. Clara Tan', 'Active', 'BSEd'),
+(25, 'ACAC', 'Association of Cultural Art Club', 'Cultural', 'Cultural arts representation.', 'Prof. Sarah Mercado', 'Active', 'Institutional'),
+(26, 'CESC', 'Computer Engineering Sports Club', 'Sports', 'Computer Engineering sports events.', 'Prof. Mark Velo', 'Active', 'BSCpE'),
+(27, 'EBCPCT', 'Elite BCP Chess Team', 'Sports', 'Elite chess training.', 'Prof. Mark Velo', 'Active', 'Institutional'),
+(28, 'RCYC-BCP', 'Red Cross Youth Council - BCP', 'Sports', 'Red cross youth operations.', 'Prof. Elena Cruz', 'Active', 'Institutional'),
+(29, 'SMC', 'Shuttle Master Club', 'Sports', 'Badminton training.', 'Prof. Mark Velo', 'Active', 'Institutional'),
+(30, 'ALL STAR', 'All Star Talent Group', 'Cultural', 'Talent group.', 'Prof. Sarah Mercado', 'Active', 'Institutional'),
+(31, 'B-FORCE', 'B-Force Hip-Hop Crew', 'Cultural', 'Hip-hop and dance crew.', 'Prof. Sarah Mercado', 'Active', 'Institutional'),
+(32, 'CREATIVE', 'Creative Arts Group', 'Cultural', 'Creative design and arts group.', 'Prof. Sarah Mercado', 'Active', 'Institutional'),
+(33, 'CDC', 'Criminology Dance Company', 'Cultural', 'Criminology dance group.', 'Prof. Sarah Mercado', 'Active', 'BSCrim'),
+(34, 'DLC', 'Drum and Lyre Corporation', 'Cultural', 'Drum and lyre marching group.', 'Prof. Sarah Mercado', 'Active', 'Institutional'),
+(35, 'IKATLONG', 'Ikatlong Lahi Royalties', 'Cultural', 'Cultural representation.', 'Prof. Sarah Mercado', 'Active', 'Institutional'),
+(36, 'IMAGE', 'Image Alchemy Media Crew', 'Cultural', 'Photography and media crew.', 'Prof. Sarah Mercado', 'Active', 'Institutional'),
+(37, 'S.I.K.A.T', 'Theater & Acting Group', 'Cultural', 'Theater and acting group.', 'Prof. Sarah Mercado', 'Active', 'Institutional'),
+(38, 'UV', 'Unlimited Voice Choir', 'Cultural', 'Choir and vocal group.', 'Prof. Sarah Mercado', 'Active', 'Institutional'),
+(39, 'PEER', 'Peer Counselor Support Group', 'Advocacy', 'Student counseling support.', 'Prof. Elena Cruz', 'Active', 'Institutional'),
+(40, 'NEWSLINK', 'School Publications', 'Advocacy', 'Student journalism and school publications.', 'Prof. Elena Cruz', 'Active', 'Institutional'),
+(41, 'GAD-CG', 'Gender and Development – Core Group', 'Advocacy', 'Gender awareness and advocacy.', 'Dr. Elena Cruz', 'Active', '')
+ON DUPLICATE KEY UPDATE `name`=VALUES(`name`), `category`=VALUES(`category`), `description`=VALUES(`description`), `adviser_name`=VALUES(`adviser_name`), `status`=VALUES(`status`), `program`=VALUES(`program`);
+

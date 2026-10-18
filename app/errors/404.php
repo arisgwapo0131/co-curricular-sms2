@@ -1,0 +1,3 @@
+<?php
+$code = 404;
+require __DIR__ . '/error.php';

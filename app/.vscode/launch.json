@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "msedge",
+      "request": "launch",
+      "name": "Open register.html (Edge)",
+      "file": "${workspaceFolder}/register.html"
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Open register.html (Brave)",
+      "file": "${workspaceFolder}/register.html"
+    }
+  ]
+}
