@@ -25,10 +25,17 @@ CREATE TABLE IF NOT EXISTS `events` (
   `endorsement_notes` TEXT DEFAULT NULL,
   `rejection_note` TEXT DEFAULT NULL,
   `deleted_at` TIMESTAMP NULL DEFAULT NULL,
+  `requires_budget` TINYINT(1) NOT NULL DEFAULT 1,
+  `doc_letter` VARCHAR(255) DEFAULT NULL,
+  `doc_board_resolution` VARCHAR(255) DEFAULT NULL,
+  `doc_liquidation` VARCHAR(255) DEFAULT NULL,
+  `doc_budget_proposal` VARCHAR(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_events_club` (`club_id`),
   KEY `idx_events_status` (`status`),
   KEY `idx_events_date` (`event_date`),
+  KEY `idx_events_status_del_date` (`status`, `deleted_at`, `event_date`),
+  KEY `idx_events_del_created` (`deleted_at`, `created_at`),
   CONSTRAINT `fk_events_club` FOREIGN KEY (`club_id`) REFERENCES `clubs` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_events_creator` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -48,7 +48,9 @@ INSERT INTO `roles` (`id`, `name`, `display_name`, `description`, `status`) VALU
 (1, 'student', 'General Student', 'Campus learner participating in registered co-curricular activities, voting in elections, and viewing achievements.', 'active'),
 (2, 'club_adviser', 'Faculty Club Adviser', 'Assigned faculty adviser governing club operations, endorsing budget/events, and maintaining the club member roster.', 'active'),
 (3, 'ssc', 'Supreme Student Council Officer', 'Council officer with institutional governance, event endorsement, budget review/revisions, and activity oversight.', 'active'),
-(4, 'admin', 'System Administrator', 'Central administrator with full access to user management, RBAC, master data, budget disbursement, security, and technical configuration.', 'active')
+(4, 'admin', 'System Administrator', 'Central administrator with full access to user management, RBAC, master data, budget disbursement, security, and technical configuration.', 'active'),
+(5, 'staff', 'OSA Staff', 'Office of Student Affairs coordinator assisting in event monitoring, volunteer hour verification, and student records.', 'active'),
+(6, 'super_admin', 'Super Administrator', 'Executive system administrator with unrestricted access to all institutional governance, security, and database modules.', 'active')
 ON DUPLICATE KEY UPDATE `display_name`=VALUES(`display_name`), `description`=VALUES(`description`), `status`=VALUES(`status`);
 
 -- 5. Seed Permissions Matrix

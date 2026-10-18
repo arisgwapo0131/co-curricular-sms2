@@ -44,7 +44,7 @@ $ai_model    = $sys_settings['ai_model'] ?? 'gemini-3.6-flash';
 $raw_api_key = get_gemini_api_key($conn);
 $has_api_key = !empty(trim($raw_api_key));
 
-// Secret Protection: Display masked fingerprint (e.g. AQ.Ab8••••OUfZrO82) so admin confirms key is active
+// Secret Protection: Display masked fingerprint (e.g. AIzaSy••••••••••••) so admin confirms key is active
 $masked_key_display = $has_api_key ? mask_api_key($raw_api_key) : '';
 
 // 5. Multi-Factor Authentication & Email Delivery Configuration

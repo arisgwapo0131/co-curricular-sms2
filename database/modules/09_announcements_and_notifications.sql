@@ -58,5 +58,53 @@ CREATE TABLE IF NOT EXISTS `notifications` (
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_notif_user_read` (`user_id`, `is_read`),
+  KEY `idx_notif_user_created` (`user_id`, `created_at`),
   CONSTRAINT `fk_notif_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `chat_groups` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `club_id` INT(10) UNSIGNED DEFAULT NULL,
+  `group_type` ENUM('club_general', 'club_executive', 'advisers_ssc') NOT NULL,
+  `name` VARCHAR(150) NOT NULL,
+  `description` VARCHAR(255) DEFAULT NULL,
+  `icon` VARCHAR(50) DEFAULT 'fa-users',
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_club_group_type` (`club_id`, `group_type`),
+  KEY `idx_cg_club` (`club_id`),
+  KEY `idx_cg_type` (`group_type`),
+  CONSTRAINT `fk_cg_club` FOREIGN KEY (`club_id`) REFERENCES `clubs` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `chat_messages` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `sender_id` INT(10) UNSIGNED NOT NULL,
+  `receiver_id` INT(10) UNSIGNED DEFAULT NULL,
+  `club_id` INT(10) UNSIGNED DEFAULT NULL,
+  `group_id` INT(10) UNSIGNED DEFAULT NULL,
+  `message` TEXT NOT NULL,
+  `is_read` TINYINT(1) NOT NULL DEFAULT 0,
+  `read_at` DATETIME DEFAULT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_chat_pair` (`sender_id`, `receiver_id`),
+  KEY `idx_chat_receiver_read` (`receiver_id`, `is_read`),
+  KEY `idx_chat_group` (`group_id`),
+  KEY `idx_chat_created` (`created_at`),
+  KEY `idx_chat_group_flow` (`group_id`, `created_at`, `id`),
+  KEY `idx_chat_direct_flow` (`receiver_id`, `sender_id`, `created_at`, `id`),
+  CONSTRAINT `fk_chat_sender` FOREIGN KEY (`sender_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `chat_group_reads` (
+  `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `group_id` INT(10) UNSIGNED NOT NULL,
+  `user_id` INT(10) UNSIGNED NOT NULL,
+  `last_read_message_id` INT(10) UNSIGNED NOT NULL DEFAULT 0,
+  `last_read_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_group_user_read` (`group_id`, `user_id`),
+  KEY `idx_cgr_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

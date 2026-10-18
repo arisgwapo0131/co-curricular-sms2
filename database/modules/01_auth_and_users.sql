@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `first_name` VARCHAR(100) NOT NULL,
   `last_name` VARCHAR(100) NOT NULL,
   `password_hash` VARCHAR(255) NOT NULL,
-  `role` ENUM('admin', 'student', 'club_adviser', 'ssc') NOT NULL DEFAULT 'student',
+  `role` ENUM('super_admin', 'admin', 'staff', 'ssc', 'club_adviser', 'student') NOT NULL DEFAULT 'student',
   `status` ENUM('Active', 'Inactive') NOT NULL DEFAULT 'Active',
   `profile_pic` VARCHAR(255) DEFAULT NULL,
   `last_login` DATETIME DEFAULT NULL,
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_users_username` (`username`),
-  UNIQUE KEY `uq_users_email` (`email`),
+  KEY `idx_users_email` (`email`),
   KEY `idx_users_role` (`role`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
