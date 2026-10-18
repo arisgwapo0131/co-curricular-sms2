@@ -54,14 +54,22 @@ require_once __DIR__ . '/../shared/db.php';
 
 $mfa_pending_email = '';
 $mfa_remaining_seconds = 300; // 5 minutes
+$mfa_dev_code_preload = null;
 
 if ($mfa_pending && !empty($conn) && !empty($db_connected)) {
   require_once __DIR__ . '/../shared/mail_helper.php';
   $mfa_pending_email = mask_email($_SESSION['mfa_email'] ?? '');
   $mfa_uid = (int)$_SESSION['mfa_user_id'];
-  $c_res = $conn->query("SELECT TIMESTAMPDIFF(SECOND, NOW(), expires_at) as rem FROM mfa_codes WHERE user_id = $mfa_uid AND purpose = 'login' AND is_used = 0 ORDER BY id DESC LIMIT 1");
+  $c_res = $conn->query("SELECT code, TIMESTAMPDIFF(SECOND, NOW(), expires_at) as rem FROM mfa_codes WHERE user_id = $mfa_uid AND purpose = 'login' AND is_used = 0 ORDER BY id DESC LIMIT 1");
   if ($c_res && $crow = $c_res->fetch_assoc()) {
     $mfa_remaining_seconds = max(0, (int)$crow['rem']);
+    // Check if dev preview is permitted
+    try {
+      $dev_chk = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'mfa_allow_dev_preview' LIMIT 1");
+      if ($dev_chk && ($drow = $dev_chk->fetch_assoc()) && $drow['setting_value'] === '1') {
+        $mfa_dev_code_preload = $crow['code'];
+      }
+    } catch (Throwable $e) {}
   }
 }
 ?>
@@ -164,6 +172,17 @@ if ($mfa_pending && !empty($conn) && !empty($db_connected)) {
             Enter the 6-digit verification code sent to<br/>
             <span id="mfaEmailMasked" class="mfa-target-email"><?= htmlspecialchars($mfa_pending_email) ?></span>
           </p>
+          <p style="font-size:0.78rem; color:#64748b; margin-top:-4px; margin-bottom:12px; text-align:center;">
+            <i class="fa-solid fa-circle-info" style="color:#2563eb;"></i> Can't find it in your inbox? Please check your <strong>Spam</strong> or <strong>Junk</strong> folder.
+          </p>
+
+          <div id="mfaDevBanner" style="<?= !empty($mfa_dev_code_preload) ? 'display:block;' : 'display:none;' ?> background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; border-radius:8px; padding:10px 14px; font-size:0.85rem; margin-bottom:14px; text-align:center;">
+            <span style="display:block; font-size:0.72rem; text-transform:uppercase; font-weight:700; letter-spacing:0.5px; color:#2563eb; margin-bottom:4px;">
+              <i class="fa-solid fa-flask"></i> Testing / Preview Mode
+            </span>
+            <span style="font-size:0.82rem; color:#475569;">Verification Code:</span>
+            <code id="mfaDevCodeVal" style="font-size:1.2rem; font-weight:800; color:#1d4ed8; letter-spacing:4px; background:#dbeafe; padding:3px 8px; border-radius:6px; cursor:pointer; margin-left:6px;" title="Click to auto-fill"><?= htmlspecialchars($mfa_dev_code_preload ?? '') ?></code>
+          </div>
 
           <div class="auth-error" id="mfaError" style="display:none; margin-bottom:14px; width:100%;"></div>
           <div class="auth-success" id="mfaSuccess" style="display:none; background:#ecfdf5; border:1px solid #10b981; color:#065f46; padding:10px 14px; border-radius:8px; font-size:0.84rem; font-weight:600; margin-bottom:14px; width:100%; text-align:center;"></div>
@@ -252,7 +271,7 @@ if ($mfa_pending && !empty($conn) && !empty($db_connected)) {
         if (data && data.success) {
           if (data.mfa_required) {
             // Smoothly switch to Multi-Factor Authentication view
-            switchToMfaView(data.email_masked, data.expires_in, data.resend_cooldown);
+            switchToMfaView(data.email_masked, data.expires_in, data.resend_cooldown, data.dev_code);
           } else {
             // Direct sign in
             try {
@@ -309,12 +328,22 @@ if ($mfa_pending && !empty($conn) && !empty($db_connected)) {
     let remainingExpirySeconds = <?= (int)$mfa_remaining_seconds ?>;
     let resendCooldownSeconds = 0;
 
-    function switchToMfaView(maskedEmail, expiresIn, resendCooldown) {
+    function switchToMfaView(maskedEmail, expiresIn, resendCooldown, devCode) {
       credentialsSection.style.display = 'none';
       mfaSection.style.display = 'flex';
       mfaEmailMasked.textContent = maskedEmail;
       mfaError.style.display = 'none';
       mfaSuccess.style.display = 'none';
+
+      if (devCode) {
+        const banner = document.getElementById('mfaDevBanner');
+        const val = document.getElementById('mfaDevCodeVal');
+        if (banner && val) {
+          val.textContent = devCode;
+          banner.style.display = 'block';
+        }
+        console.info('%c[BCP Security MFA] Verification Code: ' + devCode, 'font-size:14px; font-weight:bold; color:#2563eb;');
+      }
 
       clearOtpBoxes();
 
@@ -558,8 +587,18 @@ if ($mfa_pending && !empty($conn) && !empty($db_connected)) {
         if (data.success) {
           showMfaSuccess('A fresh 6-digit code has been dispatched to your email.');
           clearOtpBoxes();
-          startExpiryCountdown(data.expires_in || 600);
+          startExpiryCountdown(data.expires_in || 300);
           startResendCooldown(data.resend_cooldown || 60);
+
+          if (data.dev_code) {
+            const banner = document.getElementById('mfaDevBanner');
+            const val = document.getElementById('mfaDevCodeVal');
+            if (banner && val) {
+              val.textContent = data.dev_code;
+              banner.style.display = 'block';
+            }
+            console.info('%c[BCP Security MFA] Resent Verification Code: ' + data.dev_code, 'font-size:14px; font-weight:bold; color:#2563eb;');
+          }
         } else {
           showMfaError(data.message || 'Failed to resend code.');
           if (data.cooldown && data.wait) {
@@ -575,6 +614,21 @@ if ($mfa_pending && !empty($conn) && !empty($db_connected)) {
         resendText.textContent = 'Resend Code';
       }
     };
+
+    // Auto-fill OTP on click of dev preview code
+    const devCodeBadge = document.getElementById('mfaDevCodeVal');
+    if (devCodeBadge) {
+      devCodeBadge.addEventListener('click', function () {
+        const codeStr = this.textContent.trim();
+        if (codeStr && codeStr.length === 6) {
+          for (let i = 0; i < otpBoxes.length; i++) {
+            otpBoxes[i].value = codeStr[i] || '';
+            otpBoxes[i].classList.add('filled');
+          }
+          triggerMfaVerify();
+        }
+      });
+    }
 
     // Cancel MFA and return to sign in
     window.handleMfaCancel = async function () {
