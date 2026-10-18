@@ -158,6 +158,12 @@ try {
                     $mfa_enabled = ($mfa_row['setting_value'] !== '0' && strtolower($mfa_row['setting_value']) !== 'false');
                 }
             } catch (Throwable $e) {}
+
+            // Environment variable override (e.g. MFA_ENABLED=0 in Railway)
+            $env_mfa = getenv('MFA_ENABLED');
+            if ($env_mfa !== false) {
+                $mfa_enabled = ($env_mfa === '1' || strtolower($env_mfa) === 'true' || strtolower($env_mfa) === 'on');
+            }
         }
 
         if ($mfa_enabled) {
@@ -198,7 +204,7 @@ try {
                 $user['username']
             );
 
-            // Check if dev preview is permitted (local environment or unconfigured SMTP)
+            // Check if dev preview is permitted (local environment, unconfigured SMTP, or env override)
             $is_dev_env = false;
             try {
                 $dev_chk = $conn->query("SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('mfa_allow_dev_preview', 'smtp_host')");
@@ -209,6 +215,10 @@ try {
                 $is_dev_env = true;
             }
 
+            if (getenv('MFA_ALLOW_DEV_PREVIEW') !== false) {
+                $is_dev_env = (getenv('MFA_ALLOW_DEV_PREVIEW') === '1' || strtolower(getenv('MFA_ALLOW_DEV_PREVIEW')) === 'true');
+            }
+
             // Dispatch verification code to user email address
             $emailResult = dispatch_mfa_email(
                 $conn,
@@ -216,15 +226,21 @@ try {
                 $user['email'],
                 $fullName ?: $user['username'],
                 $mfaResult['code'],
-                max(1, (int)ceil(($mfaResult['expires_in'] ?? 600) / 60))
+                max(1, (int)ceil(($mfaResult['expires_in'] ?? 300) / 60))
             );
+
+            // If email delivery failed (e.g. cloud host blocked SMTP), auto-enable dev_code so user is not locked out
+            if (empty($emailResult['success'])) {
+                $is_dev_env = true;
+            }
 
             respond(true, 'A 6-digit verification code has been dispatched to your email address (' . $mfaResult['email_masked'] . ').', [
                 'mfa_required'    => true,
                 'email_masked'    => $mfaResult['email_masked'],
                 'expires_in'      => $mfaResult['expires_in'] ?? 300,
                 'resend_cooldown' => $mfaResult['resend_cooldown'] ?? 60,
-                'dev_code'        => $is_dev_env ? $mfaResult['code'] : null
+                'dev_code'        => $is_dev_env ? $mfaResult['code'] : null,
+                'mail_delivered'  => (bool)($emailResult['success'] ?? false)
             ]);
         }
 
@@ -348,6 +364,10 @@ try {
             $is_dev_env = true;
         }
 
+        if (getenv('MFA_ALLOW_DEV_PREVIEW') !== false) {
+            $is_dev_env = (getenv('MFA_ALLOW_DEV_PREVIEW') === '1' || strtolower(getenv('MFA_ALLOW_DEV_PREVIEW')) === 'true');
+        }
+
         // Dispatch verification code via email
         $emailResult = dispatch_mfa_email(
             $conn,
@@ -358,11 +378,17 @@ try {
             max(1, (int)ceil(($resendRes['expires_in'] ?? 300) / 60))
         );
 
+        // If email delivery failed (e.g. cloud host blocked SMTP), auto-enable dev_code so user is not locked out
+        if (empty($emailResult['success'])) {
+            $is_dev_env = true;
+        }
+
         respond(true, 'A new verification code has been dispatched to your email (' . $resendRes['email_masked'] . ').', [
             'email_masked'    => $resendRes['email_masked'],
             'expires_in'      => $resendRes['expires_in'] ?? 300,
             'resend_cooldown' => $resendRes['resend_cooldown'] ?? 60,
-            'dev_code'        => $is_dev_env ? $resendRes['code'] : null
+            'dev_code'        => $is_dev_env ? $resendRes['code'] : null,
+            'mail_delivered'  => (bool)($emailResult['success'] ?? false)
         ]);
     }
 

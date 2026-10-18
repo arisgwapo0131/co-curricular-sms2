@@ -72,18 +72,18 @@ function send_system_email(
         } catch (Throwable $e) {}
     }
 
-    // Check environment variable overrides
-    if (empty($smtp_host) && getenv('MAIL_HOST') && getenv('MAIL_HOST') !== '127.0.0.1') {
-        $smtp_host = getenv('MAIL_HOST');
+    // Check environment variable overrides (Environment variables take precedence over DB defaults)
+    if (getenv('MAIL_HOST') && getenv('MAIL_HOST') !== '127.0.0.1') {
+        $smtp_host = trim(getenv('MAIL_HOST'));
     }
     if (getenv('MAIL_PORT')) {
         $smtp_port = (int)getenv('MAIL_PORT');
     }
-    if (empty($smtp_user) && getenv('MAIL_USERNAME')) {
-        $smtp_user = getenv('MAIL_USERNAME');
+    if (getenv('MAIL_USERNAME')) {
+        $smtp_user = trim(getenv('MAIL_USERNAME'));
     }
-    if (empty($smtp_pass) && getenv('MAIL_PASSWORD')) {
-        $smtp_pass = getenv('MAIL_PASSWORD');
+    if (getenv('MAIL_PASSWORD')) {
+        $smtp_pass = trim(getenv('MAIL_PASSWORD'));
     }
     if (getenv('MAIL_FROM_ADDRESS')) {
         $mail_from_email = getenv('MAIL_FROM_ADDRESS');
