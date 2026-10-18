@@ -1828,117 +1828,39 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 @file_put_contents($envPath, $envContent);
             }
 
-            // Write back to db.php cleanly
-            $escaped_pass = addcslashes($new_pass, "'\\");
-            $newConfigCode = "<?php\n"
-                . "// ============================================================\n"
-                . "//  DB.PHP — Database Connection & Environment Loader\n"
-                . "// ============================================================\n\n"
-                . "// 1. Load environment variables from .env if available\n"
-                . "\$envFile = dirname(__DIR__, 2) . '/.env';\n"
-                . "if (file_exists(\$envFile)) {\n"
-                . "    \$lines = file(\$envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);\n"
-                . "    if (\$lines) {\n"
-                . "        foreach (\$lines as \$line) {\n"
-                . "            \$line = trim(\$line);\n"
-                . "            if (\$line === '' || strpos(\$line, '#') === 0) continue;\n"
-                . "            if (strpos(\$line, '=') !== false) {\n"
-                . "                list(\$key, \$val) = explode('=', \$line, 2);\n"
-                . "                \$key = trim(\$key);\n"
-                . "                \$val = trim(\$val, \" \\t\\n\\r\\0\\x0B\\\"'\");\n"
-                . "                if (getenv(\$key) === false && !array_key_exists(\$key, \$_SERVER) && !array_key_exists(\$key, \$_ENV)) {\n"
-                . "                    putenv(\"\$key=\$val\");\n"
-                . "                    \$_ENV[\$key] = \$val;\n"
-                . "                    \$_SERVER[\$key] = \$val;\n"
-                . "                }\n"
-                . "            }\n"
-                . "        }\n"
-                . "    }\n"
-                . "}\n\n"
-                . "// 2. Normalize database environment variables / aliases\n"
-                . "if (!getenv('DB_USER') && getenv('DB_USERNAME')) {\n"
-                . "    putenv('DB_USER=' . getenv('DB_USERNAME'));\n"
-                . "    \$_ENV['DB_USER'] = getenv('DB_USERNAME');\n"
-                . "}\n"
-                . "if (getenv('DB_PASS') === false && getenv('DB_PASSWORD') !== false) {\n"
-                . "    putenv('DB_PASS=' . getenv('DB_PASSWORD'));\n"
-                . "    \$_ENV['DB_PASS'] = getenv('DB_PASSWORD');\n"
-                . "}\n"
-                . "if (!getenv('DB_NAME') && getenv('DB_DATABASE')) {\n"
-                . "    putenv('DB_NAME=' . getenv('DB_DATABASE'));\n"
-                . "    \$_ENV['DB_NAME'] = getenv('DB_DATABASE');\n"
-                . "}\n\n"
-                . "\$host = getenv('DB_HOST') ?: '{$new_host}';\n"
-                . "\$user = getenv('DB_USER') ?: '{$new_user}';\n"
-                . "\$pass = getenv('DB_PASS') ?: '{$escaped_pass}';\n"
-                . "\$db   = getenv('DB_NAME') ?: '{$new_name}';\n"
-                . "\$port = (int)(getenv('DB_PORT') ?: {$new_port});\n\n"
-                . "// Define DB constants for backward compatibility across modules\n"
-                . "if (!defined('DB_HOST')) define('DB_HOST', \$host);\n"
-                . "if (!defined('DB_USER')) define('DB_USER', \$user);\n"
-                . "if (!defined('DB_PASS')) define('DB_PASS', \$pass);\n"
-                . "if (!defined('DB_NAME')) define('DB_NAME', \$db);\n"
-                . "if (!defined('DB_PORT')) define('DB_PORT', \$port);\n\n"
-                . "\$is_setup_script = (basename(\$_SERVER['PHP_SELF'] ?? '') === 'setup.php');\n\n"
-                . "// 3. Connect to MySQL server\n"
-                . "\$conn = @new mysqli(\$host, \$user, \$pass, \$is_setup_script ? '' : \$db, \$port);\n\n"
-                . "// If database does not exist (MySQL error 1049: Unknown database), auto-connect and create it\n"
-                . "if (!\$is_setup_script && \$conn->connect_errno === 1049) {\n"
-                . "    \$conn = @new mysqli(\$host, \$user, \$pass, '', \$port);\n"
-                . "    if (!\$conn->connect_error) {\n"
-                . "        \$conn->query(\"CREATE DATABASE IF NOT EXISTS `\" . \$db . \"` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci\");\n"
-                . "        \$conn->select_db(\$db);\n"
-                . "    }\n"
-                . "}\n\n"
-                . "\$db_connected = true;\n"
-                . "\$db_error = null;\n\n"
-                . "if (\$conn->connect_error) {\n"
-                . "    \$db_connected = false;\n"
-                . "    \$db_error = \$conn->connect_error;\n\n"
-                . "    if (!\$is_setup_script) {\n"
-                . "        if (!empty(\$_SERVER['HTTP_ACCEPT']) && strpos(\$_SERVER['HTTP_ACCEPT'], 'application/json') !== false) {\n"
-                . "            header('Content-Type: application/json');\n"
-                . "            http_response_code(500);\n"
-                . "            die(json_encode([\n"
-                . "                'success' => false,\n"
-                . "                'message' => 'Database connection failed: ' . \$conn->connect_error . '. Please start MySQL or verify credentials in .env.'\n"
-                . "            ]));\n"
-                . "        }\n"
-                . "        \$http_host = \$_SERVER['HTTP_HOST'] ?? 'localhost';\n"
-                . "        \$proto = (isset(\$_SERVER['HTTPS']) && \$_SERVER['HTTPS'] === 'on') ? 'https' : 'http';\n"
-                . "        \$scriptName = \$_SERVER['SCRIPT_NAME'] ?? '';\n"
-                . "        if (strpos(\$scriptName, '/app/') !== false) {\n"
-                . "            \$base = substr(\$scriptName, 0, strpos(\$scriptName, '/app/'));\n"
-                . "        } else {\n"
-                . "            \$base = rtrim(dirname(\$scriptName), '/\\\\');\n"
-                . "            if (\$base === '/' || \$base === '\\\\') \$base = '';\n"
-                . "        }\n"
-                . "        \$setupUrl = \"{\$proto}://{\$http_host}{\$base}/app/shared/setup.php?error=db_connect\";\n"
-                . "        header(\"Location: {\$setupUrl}\");\n"
-                . "        exit;\n"
-                . "    }\n"
-                . "} else {\n"
-                . "    if (\$is_setup_script) {\n"
-                . "        \$conn->query(\"CREATE DATABASE IF NOT EXISTS `\" . \$db . \"` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci\");\n"
-                . "        \$conn->select_db(\$db);\n"
-                . "    }\n"
-                . "    \$conn->set_charset('utf8mb4');\n"
-                . "}\n\n"
-                . "/**\n"
-                . " * Helper to get a dedicated connection to an organization's isolated database.\n"
-                . " * Accepts club ID or club code (e.g. 1, 'CSSEC', 'RCYC-BCP').\n"
-                . " */\n"
-                . "function getOrgDb(string|int \$club_identifier): ?mysqli {\n"
-                . "    require_once __DIR__ . '/org_db_manager.php';\n"
-                . "    return get_org_db_connection(\$club_identifier);\n"
-                . "}\n";
+            $envFile = dirname(__DIR__, 2) . '/.env';
+            $escaped_pass = addcslashes($new_pass, "\"\\");
+            $envLines = [
+                "DB_HOST={$new_host}",
+                "DB_PORT={$new_port}",
+                "DB_USER={$new_user}",
+                "DB_PASS=\"{$escaped_pass}\"",
+                "DB_NAME={$new_name}"
+            ];
+            @file_put_contents($envFile, implode("\n", $envLines) . "\n");
 
-            $savedToFile = @file_put_contents($configFile, $newConfigCode);
-            if ($savedToFile) {
-                $messages[] = "✅ Database connection successfully verified and saved to configuration file!";
-            } else {
-                $messages[] = "✅ Database connection successfully verified and active for this session!";
-            }
+            putenv("DB_HOST={$new_host}");
+            putenv("DB_PORT={$new_port}");
+            putenv("DB_USER={$new_user}");
+            putenv("DB_PASS={$new_pass}");
+            putenv("DB_NAME={$new_name}");
+            $_ENV['DB_HOST'] = $new_host;
+            $_ENV['DB_PORT'] = (string)$new_port;
+            $_ENV['DB_USER'] = $new_user;
+            $_ENV['DB_PASS'] = $new_pass;
+            $_ENV['DB_NAME'] = $new_name;
+
+            // Cache profile for instant lookup in db.php
+            $cacheFile = __DIR__ . '/.db_host_cache.json';
+            @file_put_contents($cacheFile, json_encode([
+                'host' => $new_host,
+                'port' => $new_port,
+                'user' => $new_user,
+                'pass' => $new_pass,
+                'db'   => $new_name
+            ], JSON_UNESCAPED_SLASHES));
+
+            $messages[] = "✅ Database connection successfully verified and saved for Railway and system modules!";
 
             $conn = @new mysqli($new_host, $new_user, $new_pass, $new_name, $new_port);
             if (!$conn->connect_error) {

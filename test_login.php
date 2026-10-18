@@ -109,8 +109,8 @@ if ($active_conn) {
     }
 } else {
     echo "<div style='background:#fee2e2;border:1px solid #f87171;padding:15px;border-radius:8px;color:#991b1b;'>";
-    echo "<h3>❌ Cannot Reach MariaDB Container</h3>";
-    echo "<p>Please ensure your MariaDB service in HostForge is active and running in the same workspace.</p>";
+    echo "<h3>❌ Cannot Reach MySQL / MariaDB Server</h3>";
+    echo "<p>Please ensure your MySQL service in Railway is active, or link your MySQL service variables (e.g. <code>MYSQL_URL</code>) into your web service.</p>";
     echo "</div>";
 }
 
