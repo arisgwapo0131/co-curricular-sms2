@@ -16,7 +16,17 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 if (!defined('SESSION_TIMEOUT')) {
-    define('SESSION_TIMEOUT', 600); // 10 minutes inactivity timeout (600 seconds)
+    $session_timeout_val = 120; // 2 minutes inactivity timeout (120 seconds)
+    global $conn;
+    if (!empty($conn) && $conn instanceof mysqli && @$conn->ping()) {
+        try {
+            $st_res = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'session_timeout_seconds' LIMIT 1");
+            if ($st_res && $st_row = $st_res->fetch_assoc()) {
+                $session_timeout_val = max(30, (int)$st_row['setting_value']);
+            }
+        } catch (Throwable $e) {}
+    }
+    define('SESSION_TIMEOUT', $session_timeout_val);
 }
 
 /**

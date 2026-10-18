@@ -44,7 +44,8 @@ CREATE TABLE IF NOT EXISTS `ai_recommendation_logs` (
 INSERT INTO `system_settings` (`setting_key`, `setting_value`) VALUES
 ('gemini_api_key', 'YOUR_GEMINI_API_KEY_HERE'),
 ('mfa_enabled', '1'),
-('mfa_expiry_minutes', '10'),
+('mfa_expiry_minutes', '5'),
+('session_timeout_seconds', '120'),
 ('mfa_resend_cooldown', '60'),
 ('mfa_allow_dev_preview', '1'),
 ('smtp_host', 'smtp.gmail.com'),

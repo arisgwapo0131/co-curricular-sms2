@@ -222,7 +222,7 @@ try {
             respond(true, 'A 6-digit verification code has been dispatched to your email address (' . $mfaResult['email_masked'] . ').', [
                 'mfa_required'    => true,
                 'email_masked'    => $mfaResult['email_masked'],
-                'expires_in'      => $mfaResult['expires_in'] ?? 600,
+                'expires_in'      => $mfaResult['expires_in'] ?? 300,
                 'resend_cooldown' => $mfaResult['resend_cooldown'] ?? 60,
                 'dev_code'        => $is_dev_env ? $mfaResult['code'] : null
             ]);
@@ -355,12 +355,12 @@ try {
             $userEmail,
             $userName,
             $resendRes['code'],
-            max(1, (int)ceil(($resendRes['expires_in'] ?? 600) / 60))
+            max(1, (int)ceil(($resendRes['expires_in'] ?? 300) / 60))
         );
 
         respond(true, 'A new verification code has been dispatched to your email (' . $resendRes['email_masked'] . ').', [
             'email_masked'    => $resendRes['email_masked'],
-            'expires_in'      => $resendRes['expires_in'] ?? 600,
+            'expires_in'      => $resendRes['expires_in'] ?? 300,
             'resend_cooldown' => $resendRes['resend_cooldown'] ?? 60,
             'dev_code'        => $is_dev_env ? $resendRes['code'] : null
         ]);
@@ -643,7 +643,7 @@ try {
         requireSession();
         $_SESSION['last_activity'] = time();
         respond(true, 'Session extended successfully.', [
-            'timeout' => defined('SESSION_TIMEOUT') ? SESSION_TIMEOUT : 600,
+            'timeout' => defined('SESSION_TIMEOUT') ? SESSION_TIMEOUT : 120,
             'time'    => time()
         ]);
     }

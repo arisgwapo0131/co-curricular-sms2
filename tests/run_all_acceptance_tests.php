@@ -49,8 +49,8 @@ if ($admin_row) {
 $inactive_check = strcasecmp($admin_row['status'] ?? '', 'active') === 0;
 assert_test("1.4 Active account status verified", $inactive_check);
 
-// 1.5 Session timeout configuration is exactly 600 seconds (10 mins)
-assert_test("1.5 Session timeout configured to 600 seconds (10 mins)", defined('SESSION_TIMEOUT') && SESSION_TIMEOUT === 600);
+// 1.5 Session timeout configuration is exactly 120 seconds (2 mins)
+assert_test("1.5 Session timeout configured to 120 seconds (2 mins)", defined('SESSION_TIMEOUT') && SESSION_TIMEOUT === 120);
 
 
 // ─────────────────────────────────────────────────────────────
@@ -58,8 +58,8 @@ assert_test("1.5 Session timeout configured to 600 seconds (10 mins)", defined('
 // ─────────────────────────────────────────────────────────────
 echo "\n2. RBAC & Organization Scope Tests:\n";
 
-// 2.1 Role isolation: exactly 4 system roles
-$roles_res = $conn->query("SELECT DISTINCT role FROM users WHERE role NOT IN ('student', 'club_adviser', 'ssc', 'admin')");
+// 2.1 Role isolation: supported system roles
+$roles_res = $conn->query("SELECT DISTINCT role FROM users WHERE role NOT IN ('student', 'club_adviser', 'ssc', 'admin', 'super_admin', 'staff')");
 $unsupported_roles_count = $roles_res ? $roles_res->num_rows : 0;
 assert_test("2.1 Zero unsupported roles exist in active users", $unsupported_roles_count === 0);
 

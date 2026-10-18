@@ -351,7 +351,7 @@ function issue_mfa_code(
     string $purpose = 'login'
 ): array {
     // 1. Fetch system MFA settings
-    $expiry_minutes = 10;
+    $expiry_minutes = 5;
     $resend_cooldown = 60;
     try {
         $res = $conn->query("SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('mfa_expiry_minutes', 'mfa_resend_cooldown')");
@@ -434,7 +434,7 @@ function dispatch_mfa_email(
     string $user_email,
     string $user_name,
     string $code,
-    int $expiry_minutes = 1
+    int $expiry_minutes = 5
 ): array {
     $masked_email = mask_email($user_email);
     $formatted_code = substr($code, 0, 3) . ' ' . substr($code, 3, 3);

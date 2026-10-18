@@ -17,7 +17,7 @@ if (!empty($_GET['timeout']) || !empty($_GET['expired']) || !empty($_GET['logout
 
 // Check session timeout if user was logged in
 if (!empty($_SESSION['user_id'])) {
-  $sess_timeout = 300; // 5 minutes
+  $sess_timeout = 120; // 2 minutes
   $last_act = (int)($_SESSION['last_activity'] ?? 0);
   if ($last_act <= 0 || (time() - $last_act) > $sess_timeout) {
     // Expired or stale session - cleanly destroy without looping
@@ -53,7 +53,7 @@ if ($mfa_pending && !in_array($_SESSION['mfa_role'] ?? '', ['super_admin', 'admi
 require_once __DIR__ . '/../shared/db.php';
 
 $mfa_pending_email = '';
-$mfa_remaining_seconds = 600;
+$mfa_remaining_seconds = 300; // 5 minutes
 
 if ($mfa_pending && !empty($conn) && !empty($db_connected)) {
   require_once __DIR__ . '/../shared/mail_helper.php';
@@ -318,7 +318,7 @@ if ($mfa_pending && !empty($conn) && !empty($db_connected)) {
 
       clearOtpBoxes();
 
-      startExpiryCountdown(expiresIn || 600);
+      startExpiryCountdown(expiresIn || 300);
       startResendCooldown(resendCooldown || 60);
 
       setTimeout(() => {

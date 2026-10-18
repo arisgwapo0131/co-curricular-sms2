@@ -7,8 +7,8 @@
 // ============================================================
 
 $app_root_rel = $APP_ROOT ?? '../';
-$sess_timeout = defined('SESSION_TIMEOUT') ? SESSION_TIMEOUT : 600; // 10 minutes default (600 seconds)
-$warn_lead    = 60; // Show warning 60 seconds (1 minute) before expiration
+$sess_timeout = defined('SESSION_TIMEOUT') ? SESSION_TIMEOUT : 120; // 2 minutes default (120 seconds)
+$warn_lead    = min(30, (int)floor($sess_timeout / 2)); // Show warning 30 seconds before expiration
 ?>
 
 <!-- Session Timeout Warning Modal -->
@@ -28,7 +28,7 @@ $warn_lead    = 60; // Show warning 60 seconds (1 minute) before expiration
 
     <div class="timeout-body">
       <div class="timeout-clock-wrapper">
-        <div class="timeout-clock-value" id="sessionClockDisplay">01:00</div>
+        <div class="timeout-clock-value" id="sessionClockDisplay"><?= sprintf('%02d:%02d', floor($warn_lead / 60), $warn_lead % 60) ?></div>
         <div class="timeout-clock-label">Time Remaining</div>
       </div>
       <div class="timeout-progress-track">

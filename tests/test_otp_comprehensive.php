@@ -28,7 +28,7 @@ while ($r = $res->fetch_assoc()) {
     $settings[$r['setting_key']] = $r['setting_value'];
 }
 assert_test("1.1 MFA enabled in system settings", ($settings['mfa_enabled'] ?? '') === '1');
-assert_test("1.2 MFA expiry set to 10 minutes", ($settings['mfa_expiry_minutes'] ?? '') === '10');
+assert_test("1.2 MFA expiry set to 5 minutes", ($settings['mfa_expiry_minutes'] ?? '') === '5');
 assert_test("1.3 MFA resend cooldown set to 60 seconds", ($settings['mfa_resend_cooldown'] ?? '') === '60');
 
 // 2. Test Student Direct Sign In (Role Isolation: Student requires NO MFA)
@@ -43,15 +43,19 @@ assert_test("3.1 Adviser account found ({$adv['username']})", !empty($adv));
 $ssc = $conn->query("SELECT id, username, email, first_name, last_name, role FROM users WHERE role = 'ssc' LIMIT 1")->fetch_assoc();
 assert_test("4.1 SSC account found ({$ssc['username']})", !empty($ssc));
 
+// Clear test user mfa_codes to avoid cooldown conflicts between test runs
+$conn->query("DELETE FROM mfa_codes WHERE user_id = " . (int)$ssc['id']);
+
 $mfa_ssc = issue_mfa_code($conn, (int)$ssc['id'], $ssc['email'], $ssc['first_name'] . ' ' . $ssc['last_name'], 'login');
 assert_test("4.2 SSC MFA 6-digit code issued", $mfa_ssc['success'] && strlen($mfa_ssc['code']) === 6);
 assert_test("4.3 SSC Email correctly masked", $mfa_ssc['email_masked'] === mask_email($ssc['email']));
-assert_test("4.4 SSC Expiry set to 600s (10m)", $mfa_ssc['expires_in'] === 600);
+assert_test("4.4 SSC Expiry set to 300s (5m)", $mfa_ssc['expires_in'] === 300);
 
 // 5. Test Admin MFA Code Issuance
 $adm = $conn->query("SELECT id, username, email, first_name, last_name, role FROM users WHERE role = 'admin' LIMIT 1")->fetch_assoc();
 assert_test("5.1 Admin account found ({$adm['username']})", !empty($adm));
 
+$conn->query("DELETE FROM mfa_codes WHERE user_id = " . (int)$adm['id']);
 $mfa_adm = issue_mfa_code($conn, (int)$adm['id'], $adm['email'], $adm['first_name'] . ' ' . $adm['last_name'], 'login');
 assert_test("5.2 Admin MFA 6-digit code issued", $mfa_adm['success'] && strlen($mfa_adm['code']) === 6);
 assert_test("5.3 Admin Email correctly masked", $mfa_adm['email_masked'] === mask_email($adm['email']));
