@@ -15,6 +15,10 @@
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
+-- Ensure target database exists and is selected (Critical for Railway and Cloud Deployments)
+CREATE DATABASE IF NOT EXISTS `sms_db` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE `sms_db`;
+
 --
 -- Table structure for table `academic_programs`
 --

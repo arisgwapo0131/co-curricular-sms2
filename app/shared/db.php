@@ -37,6 +37,20 @@ if (file_exists($envFile)) {
 
 // 2. Parse DATABASE_URL / MYSQL_URL / MYSQL_PUBLIC_URL if provided by Railway or cloud platforms
 $db_url = getenv('MYSQL_URL') ?: (getenv('MYSQL_PUBLIC_URL') ?: (getenv('DATABASE_URL') ?: (getenv('CLEARDB_DATABASE_URL') ?: getenv('JAWSDB_URL'))));
+
+// Detect Railway environment
+$is_railway = (bool)(
+    getenv('RAILWAY_ENVIRONMENT') ||
+    getenv('RAILWAY_PROJECT_ID') ||
+    getenv('RAILWAY_SERVICE_NAME') ||
+    getenv('RAILWAY_PUBLIC_DOMAIN') ||
+    getenv('RAILWAY_STATIC_URL') ||
+    getenv('RAILWAY_DEPLOYMENT_ID') ||
+    getenv('RAILWAY_GIT_COMMIT_SHA') ||
+    (getenv('MYSQLHOST') && strpos(getenv('MYSQLHOST'), 'railway') !== false) ||
+    ($db_url && strpos($db_url, 'railway') !== false)
+);
+
 if ($db_url && strpos($db_url, '://') !== false) {
     $parsed_url = parse_url($db_url);
     if ($parsed_url) {
@@ -60,10 +74,12 @@ if ($db_url && strpos($db_url, '://') !== false) {
         }
         if (!empty($parsed_url['path'])) {
             $d_dec = ltrim($parsed_url['path'], '/');
-            if ($d_dec !== '') {
-                putenv('DB_NAME=' . $d_dec);
-                $_ENV['DB_NAME'] = $d_dec;
+            // On Railway or cloud, if path is 'railway' or empty, use 'sms_db'
+            if ($is_railway || $d_dec === 'railway' || $d_dec === 'test' || $d_dec === '') {
+                $d_dec = 'sms_db';
             }
+            putenv('DB_NAME=' . $d_dec);
+            $_ENV['DB_NAME'] = $d_dec;
         }
     }
 }
@@ -79,7 +95,14 @@ if ($pass === false || $pass === null) {
 if ($pass === false || $pass === null) {
     $pass = getenv('MARIADB_PASSWORD') ?: (getenv('DB_PASSWORD') ?: (getenv('MYSQL_PASSWORD') ?: (getenv('DATABASE_PASSWORD') ?: '')));
 }
-$db = getenv('MYSQLDATABASE') ?: (getenv('DB_NAME') ?: (getenv('MARIADB_DATABASE') ?: (getenv('DB_DATABASE') ?: (getenv('MYSQL_DATABASE') ?: (getenv('DATABASE_NAME') ?: 'sms_db')))));
+$db = getenv('DB_NAME') ?: (getenv('MYSQLDATABASE') ?: (getenv('MARIADB_DATABASE') ?: (getenv('DB_DATABASE') ?: (getenv('MYSQL_DATABASE') ?: (getenv('DATABASE_NAME') ?: 'sms_db')))));
+
+// CRITICAL: Always prioritize and enforce 'sms_db' on Railway & Cloud deployments
+if ($is_railway || empty($db) || $db === 'railway' || $db === 'test') {
+    $db = 'sms_db';
+    putenv('DB_NAME=sms_db');
+    $_ENV['DB_NAME'] = 'sms_db';
+}
 
 // Check session override if configured via web setup
 if (session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION['db_override'])) {
@@ -98,6 +121,7 @@ $conn = null;
 
 // Detect if explicit Railway / Cloud DB environment variables are present
 $has_cloud_env = (bool)(
+    $is_railway ||
     getenv('MYSQL_URL') ||
     getenv('MYSQL_PUBLIC_URL') ||
     getenv('DATABASE_URL') ||
@@ -186,15 +210,35 @@ if (!$conn) {
 
     $connection_profiles = [];
 
-    // 1. If Railway / Cloud environment variables are set, try them FIRST!
-    if ($has_cloud_env) {
-        $connection_profiles[] = [
-            'host' => $host,
-            'port' => $port,
-            'user' => $user,
-            'pass' => $pass,
-            'db'   => $db
+    // 1. If Railway or Cloud environment variables are present, prioritize them FIRST!
+    if ($has_cloud_env || $is_railway) {
+        if ($host && !in_array($host, ['127.0.0.1', 'localhost'], true)) {
+            $connection_profiles[] = [
+                'host' => $host,
+                'port' => $port,
+                'user' => $user,
+                'pass' => $pass,
+                'db'   => 'sms_db'
+            ];
+        }
+
+        // Railway private networking DNS hostnames
+        $railway_private_hosts = [
+            'mysql.railway.internal',
+            'mariadb.railway.internal',
+            'database.railway.internal',
+            'db.railway.internal'
         ];
+        foreach ($railway_private_hosts as $rph) {
+            $connection_profiles[] = [
+                'host' => $rph,
+                'port' => $port ?: 3306,
+                'user' => $user ?: 'root',
+                'pass' => $pass ?: '',
+                'db'   => 'sms_db'
+            ];
+        }
+
         // Also try MYSQL_PUBLIC_URL if internal host is still warming up
         $pub_url = getenv('MYSQL_PUBLIC_URL');
         if ($pub_url && strpos($pub_url, '://') !== false) {
@@ -205,13 +249,13 @@ if (!$conn) {
                     'port' => (int)($pu['port'] ?? 3306),
                     'user' => !empty($pu['user']) ? rawurldecode($pu['user']) : $user,
                     'pass' => isset($pu['pass']) ? rawurldecode($pu['pass']) : $pass,
-                    'db'   => !empty($pu['path']) ? ltrim($pu['path'], '/') : $db
+                    'db'   => 'sms_db'
                 ];
             }
         }
     }
 
-    // 2. Local machine priority when running in local development
+    // 2. Local machine priority when running in local development (Windows / localhost)
     if ($is_local_env) {
         $connection_profiles[] = [
             'host' => '127.0.0.1',
@@ -235,7 +279,7 @@ if (!$conn) {
         'port' => $port,
         'user' => $user,
         'pass' => $pass,
-        'db'   => $db
+        'db'   => 'sms_db'
     ];
 
     // 4. Docker Compose fallback
@@ -248,7 +292,7 @@ if (!$conn) {
     ];
 
     // 5. Local fallback if not added previously
-    if (!$is_local_env) {
+    if (!$is_local_env && !$is_railway) {
         $connection_profiles[] = [
             'host' => '127.0.0.1',
             'port' => 3306,
@@ -343,10 +387,13 @@ if ($db_connected && $conn && !$conn->connect_error) {
             if (!headers_sent()) {
                 header('Content-Type: application/json; charset=utf-8');
             }
-            http_response_code(200);
+            $env_hint = $is_railway 
+                ? "Please verify your Railway MySQL service variables (ensure MySQL is added to your Railway project and referenced in Web Service Variables, e.g. MYSQLHOST, MYSQLUSER, MYSQLPASSWORD, DB_NAME=sms_db)."
+                : "Please verify DB_HOST, DB_USER, DB_PASS, and DB_NAME environment variables.";
+
             echo json_encode([
                 'success' => false,
-                'message' => "Database connection unavailable to {$host}:{$port} (" . ($db_error ?: 'Connection failed') . "). Please verify HostForge DB_HOST environment variable."
+                'message' => "Database connection unavailable to {$host}:{$port} (" . ($db_error ?: 'Connection failed') . "). {$env_hint}"
             ]);
             exit;
         }

@@ -9,11 +9,10 @@ foreach (['DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASS', 'DB_NAME', 'DATABASE_URL',
 }
 
 $candidates = [
-    ['host' => getenv('DB_HOST') ?: 'mariadb-u4q86rul.internal', 'port' => (int)(getenv('DB_PORT') ?: 3306), 'user' => getenv('DB_USER') ?: 'hf_b9q1pogqoz', 'pass' => getenv('DB_PASS') ?: '9K8GvRhxAWioQQGE1m3iyXitghmBpZFA', 'db' => getenv('DB_NAME') ?: 'sms_db'],
-    ['host' => 'mariadb-u4q86rul.internal', 'port' => 3306, 'user' => 'hf_b9q1pogqoz', 'pass' => '9K8GvRhxAWioQQGE1m3iyXitghmBpZFA', 'db' => 'sms_db'],
-    ['host' => 'mariadb-u4q86rul.internal', 'port' => 3306, 'user' => 'hf_b9q1pogqoz', 'pass' => '9K8GvRhxAWioQQGE1m3iyXitghmBpZFA', 'db' => 'hf_db_u4q86rul'],
-    ['host' => 'mariadb-zm6yg1bc.internal', 'port' => 3306, 'user' => 'hf_egibt4ecge', 'pass' => '9K8GvRhxAWioQQGE1m3iyXitghmBpZFA', 'db' => 'sms_db'],
-    ['host' => 'mariadb-zm6yg1bc.internal', 'port' => 3306, 'user' => 'hf_egibt4ecge', 'pass' => '9K8GvRhxAWioQQGE1m3iyXitghmBpZFA', 'db' => 'hf_db_zm6yg1bc'],
+    ['host' => getenv('MYSQLHOST') ?: (getenv('DB_HOST') ?: 'mysql.railway.internal'), 'port' => (int)(getenv('MYSQLPORT') ?: (getenv('DB_PORT') ?: 3306)), 'user' => getenv('MYSQLUSER') ?: (getenv('DB_USER') ?: 'root'), 'pass' => getenv('MYSQLPASSWORD') ?: (getenv('DB_PASS') ?: ''), 'db' => 'sms_db'],
+    ['host' => 'mysql.railway.internal', 'port' => 3306, 'user' => getenv('MYSQLUSER') ?: 'root', 'pass' => getenv('MYSQLPASSWORD') ?: '', 'db' => 'sms_db'],
+    ['host' => 'mariadb.railway.internal', 'port' => 3306, 'user' => getenv('MYSQLUSER') ?: 'root', 'pass' => getenv('MYSQLPASSWORD') ?: '', 'db' => 'sms_db'],
+    ['host' => 'db.railway.internal', 'port' => 3306, 'user' => getenv('MYSQLUSER') ?: 'root', 'pass' => getenv('MYSQLPASSWORD') ?: '', 'db' => 'sms_db'],
     ['host' => '127.0.0.1', 'port' => 3306, 'user' => 'root', 'pass' => '', 'db' => 'sms_db'],
 ];
 

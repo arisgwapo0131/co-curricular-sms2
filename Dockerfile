@@ -51,8 +51,8 @@ RUN { \
 # Set Apache DocumentRoot to the application directory
 WORKDIR /var/www/html
 
-# Force cache invalidation so HostForge always builds the latest code
-ARG BUILD_VERSION=20261007_1630_healthfix
+# Force cache invalidation so Railway & container platforms build the latest code
+ARG BUILD_VERSION=20261018_1545_railway_smsdb
 ENV BUILD_VERSION=${BUILD_VERSION}
 
 # Copy application files

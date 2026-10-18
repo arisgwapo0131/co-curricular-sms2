@@ -34,23 +34,50 @@ if ($pass === false || $pass === null) {
 if ($pass === false || $pass === null || $pass === '') {
     $pass = getenv('DB_PASSWORD') ?: (defined('DB_PASS') ? DB_PASS : '');
 }
-$db   = getenv('MYSQLDATABASE') ?: (getenv('DB_NAME') ?: (getenv('DB_DATABASE') ?: (defined('DB_NAME') ? DB_NAME : 'sms_db')));
+$db = getenv('DB_NAME') ?: (getenv('MYSQLDATABASE') ?: (getenv('DB_DATABASE') ?: (defined('DB_NAME') ? DB_NAME : 'sms_db')));
+
+$is_railway = (bool)(
+    getenv('RAILWAY_ENVIRONMENT') ||
+    getenv('RAILWAY_PROJECT_ID') ||
+    getenv('RAILWAY_SERVICE_NAME') ||
+    getenv('RAILWAY_PUBLIC_DOMAIN') ||
+    getenv('RAILWAY_STATIC_URL') ||
+    (getenv('MYSQLHOST') && strpos(getenv('MYSQLHOST'), 'railway') !== false)
+);
+
+// CRITICAL DIRECTIVE: Always use 'sms_db' on Railway & Cloud deployments
+if ($is_railway || empty($db) || $db === 'railway' || $db === 'test') {
+    $db = 'sms_db';
+}
 
 echo "🔍 Target Database Host: {$host}:{$port}\n";
 echo "🔍 Target Database Name: {$db}\n";
 echo "🔍 Connecting user: {$user}\n";
 
-// 2. Retry loop waiting for MySQL availability
+// 2. Candidate host list (prioritize configured host, then Railway private DNS)
+$candidate_hosts = [$host];
+if ($is_railway || !in_array($host, ['mysql.railway.internal', 'mariadb.railway.internal'], true)) {
+    $candidate_hosts[] = 'mysql.railway.internal';
+    $candidate_hosts[] = 'mariadb.railway.internal';
+    $candidate_hosts[] = 'db.railway.internal';
+    $candidate_hosts[] = 'database.railway.internal';
+}
+$candidate_hosts = array_unique(array_filter($candidate_hosts));
+
+// 3. Retry loop waiting for MySQL availability
 $max_retries = 30;
 $retry_count = 0;
 $connected = false;
 $mysqli = null;
 
 while ($retry_count < $max_retries) {
-    $mysqli = @new mysqli($host, $user, $pass, '', $port);
-    if (!$mysqli->connect_error) {
-        $connected = true;
-        break;
+    foreach ($candidate_hosts as $cand_h) {
+        $mysqli = @new mysqli($cand_h, $user, $pass, '', $port);
+        if (!$mysqli->connect_error) {
+            $connected = true;
+            $host = $cand_h;
+            break 2;
+        }
     }
     $retry_count++;
     echo "⏳ Waiting for MySQL to become ready... (attempt {$retry_count}/{$max_retries})\n";

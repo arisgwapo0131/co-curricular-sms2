@@ -7,44 +7,36 @@ echo "<h1>🚀 Bestlink SMS — Real-Time Database Connection & Diagnostics</h1>
 
 $candidates = [
     [
-        'name' => 'HostForge MariaDB 1 (u4q86rul) - sms_db',
-        'host' => 'mariadb-u4q86rul.internal',
-        'port' => 3306,
-        'user' => 'hf_b9q1pogqoz',
-        'pass' => '9K8GvRhxAWioQQGE1m3iyXitghmBpZFA',
+        'name' => 'Railway MySQL Private Host (mysql.railway.internal) - sms_db',
+        'host' => 'mysql.railway.internal',
+        'port' => (int)(getenv('MYSQLPORT') ?: (getenv('DB_PORT') ?: 3306)),
+        'user' => getenv('MYSQLUSER') ?: (getenv('DB_USER') ?: 'root'),
+        'pass' => getenv('MYSQLPASSWORD') ?: (getenv('DB_PASS') ?: ''),
         'db'   => 'sms_db'
     ],
     [
-        'name' => 'HostForge MariaDB 1 (u4q86rul) - hf_db_u4q86rul',
-        'host' => 'mariadb-u4q86rul.internal',
-        'port' => 3306,
-        'user' => 'hf_b9q1pogqoz',
-        'pass' => '9K8GvRhxAWioQQGE1m3iyXitghmBpZFA',
-        'db'   => 'hf_db_u4q86rul'
-    ],
-    [
-        'name' => 'HostForge MariaDB 2 (zm6yg1bc) - sms_db',
-        'host' => 'mariadb-zm6yg1bc.internal',
-        'port' => 3306,
-        'user' => 'hf_egibt4ecge',
-        'pass' => '9K8GvRhxAWioQQGE1m3iyXitghmBpZFA',
+        'name' => 'Configured Environment Variables (sms_db)',
+        'host' => getenv('MYSQLHOST') ?: (getenv('DB_HOST') ?: '127.0.0.1'),
+        'port' => (int)(getenv('MYSQLPORT') ?: (getenv('DB_PORT') ?: 3306)),
+        'user' => getenv('MYSQLUSER') ?: (getenv('DB_USER') ?: 'root'),
+        'pass' => getenv('MYSQLPASSWORD') ?: (getenv('DB_PASS') ?: ''),
         'db'   => 'sms_db'
     ],
     [
-        'name' => 'HostForge MariaDB 2 (zm6yg1bc) - hf_db_zm6yg1bc',
-        'host' => 'mariadb-zm6yg1bc.internal',
+        'name' => 'Railway MariaDB Private Host (mariadb.railway.internal) - sms_db',
+        'host' => 'mariadb.railway.internal',
         'port' => 3306,
-        'user' => 'hf_egibt4ecge',
-        'pass' => '9K8GvRhxAWioQQGE1m3iyXitghmBpZFA',
-        'db'   => 'hf_db_zm6yg1bc'
+        'user' => getenv('MYSQLUSER') ?: 'root',
+        'pass' => getenv('MYSQLPASSWORD') ?: '',
+        'db'   => 'sms_db'
     ],
     [
-        'name' => 'Configured Environment Variables',
-        'host' => getenv('DB_HOST') ?: '127.0.0.1',
-        'port' => (int)(getenv('DB_PORT') ?: 3306),
-        'user' => getenv('DB_USER') ?: 'root',
-        'pass' => getenv('DB_PASS') ?: '',
-        'db'   => getenv('DB_NAME') ?: 'sms_db'
+        'name' => 'Localhost Fallback (127.0.0.1:3306) - sms_db',
+        'host' => '127.0.0.1',
+        'port' => 3306,
+        'user' => 'root',
+        'pass' => '',
+        'db'   => 'sms_db'
     ]
 ];
 
