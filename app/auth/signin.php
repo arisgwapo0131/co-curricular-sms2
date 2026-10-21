@@ -172,17 +172,6 @@ if ($mfa_pending && !empty($conn) && !empty($db_connected)) {
             Enter the 6-digit verification code sent to<br/>
             <span id="mfaEmailMasked" class="mfa-target-email"><?= htmlspecialchars($mfa_pending_email) ?></span>
           </p>
-          <p style="font-size:0.78rem; color:#64748b; margin-top:-4px; margin-bottom:12px; text-align:center;">
-            <i class="fa-solid fa-circle-info" style="color:#2563eb;"></i> Can't find it in your inbox? Please check your <strong>Spam</strong> or <strong>Junk</strong> folder.
-          </p>
-
-          <div id="mfaDevBanner" style="<?= !empty($mfa_dev_code_preload) ? 'display:block;' : 'display:none;' ?> background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; border-radius:8px; padding:10px 14px; font-size:0.85rem; margin-bottom:14px; text-align:center;">
-            <span style="display:block; font-size:0.72rem; text-transform:uppercase; font-weight:700; letter-spacing:0.5px; color:#2563eb; margin-bottom:4px;">
-              <i class="fa-solid fa-flask"></i> Testing / Preview Mode
-            </span>
-            <span style="font-size:0.82rem; color:#475569;">Verification Code:</span>
-            <code id="mfaDevCodeVal" style="font-size:1.2rem; font-weight:800; color:#1d4ed8; letter-spacing:4px; background:#dbeafe; padding:3px 8px; border-radius:6px; cursor:pointer; margin-left:6px;" title="Click to auto-fill"><?= htmlspecialchars($mfa_dev_code_preload ?? '') ?></code>
-          </div>
 
           <div class="auth-error" id="mfaError" style="display:none; margin-bottom:14px; width:100%;"></div>
           <div class="auth-success" id="mfaSuccess" style="display:none; background:#ecfdf5; border:1px solid #10b981; color:#065f46; padding:10px 14px; border-radius:8px; font-size:0.84rem; font-weight:600; margin-bottom:14px; width:100%; text-align:center;"></div>
