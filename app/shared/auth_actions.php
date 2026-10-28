@@ -204,21 +204,6 @@ try {
                 $user['username']
             );
 
-            // Check if dev preview is permitted (local environment, unconfigured SMTP, or env override)
-            $is_dev_env = false;
-            try {
-                $dev_chk = $conn->query("SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('mfa_allow_dev_preview', 'smtp_host')");
-                $dev_sets = [];
-                if ($dev_chk) while ($dr = $dev_chk->fetch_assoc()) $dev_sets[$dr['setting_key']] = $dr['setting_value'];
-                $is_dev_env = ($dev_sets['mfa_allow_dev_preview'] ?? '1') === '1' || empty($dev_sets['smtp_host']);
-            } catch (Throwable $e) {
-                $is_dev_env = true;
-            }
-
-            if (getenv('MFA_ALLOW_DEV_PREVIEW') !== false) {
-                $is_dev_env = (getenv('MFA_ALLOW_DEV_PREVIEW') === '1' || strtolower(getenv('MFA_ALLOW_DEV_PREVIEW')) === 'true');
-            }
-
             // Dispatch verification code to user email address
             $emailResult = dispatch_mfa_email(
                 $conn,
@@ -229,17 +214,11 @@ try {
                 max(1, (int)ceil(($mfaResult['expires_in'] ?? 300) / 60))
             );
 
-            // If email delivery failed (e.g. cloud host blocked SMTP), auto-enable dev_code so user is not locked out
-            if (empty($emailResult['success'])) {
-                $is_dev_env = true;
-            }
-
             respond(true, 'A 6-digit verification code has been dispatched to your email address (' . $mfaResult['email_masked'] . ').', [
                 'mfa_required'    => true,
                 'email_masked'    => $mfaResult['email_masked'],
                 'expires_in'      => $mfaResult['expires_in'] ?? 300,
                 'resend_cooldown' => $mfaResult['resend_cooldown'] ?? 60,
-                'dev_code'        => $is_dev_env ? $mfaResult['code'] : null,
                 'mail_delivered'  => (bool)($emailResult['success'] ?? false)
             ]);
         }
@@ -356,21 +335,6 @@ try {
             ]);
         }
 
-        // Check if dev preview is permitted
-        $is_dev_env = false;
-        try {
-            $dev_chk = $conn->query("SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('mfa_allow_dev_preview', 'smtp_host')");
-            $dev_sets = [];
-            if ($dev_chk) while ($dr = $dev_chk->fetch_assoc()) $dev_sets[$dr['setting_key']] = $dr['setting_value'];
-            $is_dev_env = ($dev_sets['mfa_allow_dev_preview'] ?? '1') === '1' || empty($dev_sets['smtp_host']);
-        } catch (Throwable $e) {
-            $is_dev_env = true;
-        }
-
-        if (getenv('MFA_ALLOW_DEV_PREVIEW') !== false) {
-            $is_dev_env = (getenv('MFA_ALLOW_DEV_PREVIEW') === '1' || strtolower(getenv('MFA_ALLOW_DEV_PREVIEW')) === 'true');
-        }
-
         // Dispatch verification code via email
         $emailResult = dispatch_mfa_email(
             $conn,
@@ -381,16 +345,10 @@ try {
             max(1, (int)ceil(($resendRes['expires_in'] ?? 300) / 60))
         );
 
-        // If email delivery failed (e.g. cloud host blocked SMTP), auto-enable dev_code so user is not locked out
-        if (empty($emailResult['success'])) {
-            $is_dev_env = true;
-        }
-
         respond(true, 'A new verification code has been dispatched to your email (' . $resendRes['email_masked'] . ').', [
             'email_masked'    => $resendRes['email_masked'],
             'expires_in'      => $resendRes['expires_in'] ?? 300,
             'resend_cooldown' => $resendRes['resend_cooldown'] ?? 60,
-            'dev_code'        => $is_dev_env ? $resendRes['code'] : null,
             'mail_delivered'  => (bool)($emailResult['success'] ?? false)
         ]);
     }
@@ -404,24 +362,13 @@ try {
         if (!empty($_SESSION['mfa_pending']) && !empty($_SESSION['mfa_user_id'])) {
             require_once __DIR__ . '/mail_helper.php';
             $userId = (int)$_SESSION['mfa_user_id'];
-            $chk = $conn->query("SELECT code, expires_at, TIMESTAMPDIFF(SECOND, NOW(), expires_at) as remaining_seconds FROM mfa_codes WHERE user_id = $userId AND purpose = 'login' AND is_used = 0 ORDER BY id DESC LIMIT 1");
+            $chk = $conn->query("SELECT expires_at, TIMESTAMPDIFF(SECOND, NOW(), expires_at) as remaining_seconds FROM mfa_codes WHERE user_id = $userId AND purpose = 'login' AND is_used = 0 ORDER BY id DESC LIMIT 1");
             $r = $chk ? $chk->fetch_assoc() : null;
-
-            $is_dev_env = false;
-            try {
-                $dev_chk = $conn->query("SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('mfa_allow_dev_preview', 'smtp_host')");
-                $dev_sets = [];
-                if ($dev_chk) while ($dr = $dev_chk->fetch_assoc()) $dev_sets[$dr['setting_key']] = $dr['setting_value'];
-                $is_dev_env = ($dev_sets['mfa_allow_dev_preview'] ?? '1') === '1' || empty($dev_sets['smtp_host']);
-            } catch (Throwable $e) {
-                $is_dev_env = true;
-            }
 
             respond(true, 'Pending MFA session', [
                 'pending'           => true,
                 'email_masked'      => mask_email($_SESSION['mfa_email'] ?? ''),
-                'remaining_seconds' => max(0, (int)($r['remaining_seconds'] ?? 0)),
-                'dev_code'          => ($is_dev_env && $r) ? $r['code'] : null
+                'remaining_seconds' => max(0, (int)($r['remaining_seconds'] ?? 0))
             ]);
         }
         respond(true, 'No pending MFA challenge', ['pending' => false]);

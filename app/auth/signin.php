@@ -40,22 +40,14 @@ require_once __DIR__ . '/../shared/db.php';
 
 $mfa_pending_email = '';
 $mfa_remaining_seconds = 300; // 5 minutes
-$mfa_dev_code_preload = null;
 
 if ($mfa_pending && !empty($conn) && !empty($db_connected)) {
   require_once __DIR__ . '/../shared/mail_helper.php';
   $mfa_pending_email = mask_email($_SESSION['mfa_email'] ?? '');
   $mfa_uid = (int)$_SESSION['mfa_user_id'];
-  $c_res = $conn->query("SELECT code, TIMESTAMPDIFF(SECOND, NOW(), expires_at) as rem FROM mfa_codes WHERE user_id = $mfa_uid AND purpose = 'login' AND is_used = 0 ORDER BY id DESC LIMIT 1");
+  $c_res = $conn->query("SELECT TIMESTAMPDIFF(SECOND, NOW(), expires_at) as rem FROM mfa_codes WHERE user_id = $mfa_uid AND purpose = 'login' AND is_used = 0 ORDER BY id DESC LIMIT 1");
   if ($c_res && $crow = $c_res->fetch_assoc()) {
     $mfa_remaining_seconds = max(0, (int)$crow['rem']);
-    // Check if dev preview is permitted
-    try {
-      $dev_chk = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'mfa_allow_dev_preview' LIMIT 1");
-      if ($dev_chk && ($drow = $dev_chk->fetch_assoc()) && $drow['setting_value'] === '1') {
-        $mfa_dev_code_preload = $crow['code'];
-      }
-    } catch (Throwable $e) {}
   }
 }
 ?>
@@ -162,15 +154,6 @@ if ($mfa_pending && !empty($conn) && !empty($db_connected)) {
           <div class="auth-error" id="mfaError" style="display:none; margin-bottom:14px; width:100%;"></div>
           <div class="auth-success" id="mfaSuccess" style="display:none; background:#ecfdf5; border:1px solid #10b981; color:#065f46; padding:10px 14px; border-radius:8px; font-size:0.84rem; font-weight:600; margin-bottom:14px; width:100%; text-align:center;"></div>
 
-          <!-- Direct / Fallback Security OTP Banner (Displays when simulated delivery or preview is permitted) -->
-          <div id="mfaDevBanner" style="<?= (!empty($mfa_dev_code_preload) ? 'display:block;' : 'display:none;') ?>; background:#f0fdf4; border:1.5px solid #22c55e; border-radius:10px; padding:12px 14px; margin-bottom:16px; text-align:center; width:100%; box-sizing:border-box;">
-            <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; font-weight:800; color:#15803d; margin-bottom:4px; display:flex; align-items:center; justify-content:center; gap:6px;">
-              <i class="fa-solid fa-shield-halved"></i> Security Verification Code
-            </div>
-            <div style="font-size:1.55rem; font-weight:800; letter-spacing:4px; color:#166534; font-family:monospace; user-select:all; cursor:pointer;" id="mfaDevCodeVal" title="Click to auto-fill"><?= htmlspecialchars($mfa_dev_code_preload ?? '') ?></div>
-            <div style="font-size:0.72rem; color:#15803d; margin-top:4px;">Click the code to auto-fill or enter the 6 digits below</div>
-          </div>
-
           <form id="mfaForm" style="width:100%" onsubmit="handleMfaVerify(event)">
             <!-- 6 Discrete OTP Input Boxes -->
             <div class="otp-inputs-row" id="otpContainer">
@@ -255,7 +238,7 @@ if ($mfa_pending && !empty($conn) && !empty($db_connected)) {
         if (data && data.success) {
           if (data.mfa_required) {
             // Smoothly switch to Multi-Factor Authentication view
-            switchToMfaView(data.email_masked, data.expires_in, data.resend_cooldown, data.dev_code);
+            switchToMfaView(data.email_masked, data.expires_in, data.resend_cooldown);
           } else {
             // Direct sign in
             try {
@@ -312,22 +295,12 @@ if ($mfa_pending && !empty($conn) && !empty($db_connected)) {
     let remainingExpirySeconds = <?= (int)$mfa_remaining_seconds ?>;
     let resendCooldownSeconds = 0;
 
-    function switchToMfaView(maskedEmail, expiresIn, resendCooldown, devCode) {
+    function switchToMfaView(maskedEmail, expiresIn, resendCooldown) {
       credentialsSection.style.display = 'none';
       mfaSection.style.display = 'flex';
       mfaEmailMasked.textContent = maskedEmail;
       mfaError.style.display = 'none';
       mfaSuccess.style.display = 'none';
-
-      if (devCode) {
-        const banner = document.getElementById('mfaDevBanner');
-        const val = document.getElementById('mfaDevCodeVal');
-        if (banner && val) {
-          val.textContent = devCode;
-          banner.style.display = 'block';
-        }
-        console.info('%c[BCP Security MFA] Verification Code: ' + devCode, 'font-size:14px; font-weight:bold; color:#2563eb;');
-      }
 
       clearOtpBoxes();
 
@@ -591,15 +564,6 @@ if ($mfa_pending && !empty($conn) && !empty($db_connected)) {
           startExpiryCountdown(data.expires_in || 300);
           startResendCooldown(data.resend_cooldown || 60);
 
-          if (data.dev_code) {
-            const banner = document.getElementById('mfaDevBanner');
-            const val = document.getElementById('mfaDevCodeVal');
-            if (banner && val) {
-              val.textContent = data.dev_code;
-              banner.style.display = 'block';
-            }
-            console.info('%c[BCP Security MFA] Resent Verification Code: ' + data.dev_code, 'font-size:14px; font-weight:bold; color:#2563eb;');
-          }
         } else {
           showMfaError(data.message || 'Failed to resend code.');
           if (data.cooldown && data.wait) {
@@ -615,21 +579,6 @@ if ($mfa_pending && !empty($conn) && !empty($db_connected)) {
         resendText.textContent = 'Resend Code';
       }
     };
-
-    // Auto-fill OTP on click of dev preview code
-    const devCodeBadge = document.getElementById('mfaDevCodeVal');
-    if (devCodeBadge) {
-      devCodeBadge.addEventListener('click', function () {
-        const codeStr = this.textContent.trim();
-        if (codeStr && codeStr.length === 6) {
-          for (let i = 0; i < otpBoxes.length; i++) {
-            otpBoxes[i].value = codeStr[i] || '';
-            otpBoxes[i].classList.add('filled');
-          }
-          triggerMfaVerify();
-        }
-      });
-    }
 
     // Cancel MFA and return to sign in
     window.handleMfaCancel = async function () {

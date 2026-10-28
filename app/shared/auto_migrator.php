@@ -53,6 +53,7 @@ function auto_initialize_database(mysqli $conn): bool {
                 ('mail_from_name', 'Bestlink College of the Philippines'),
                 ('mail_from_email', 'cgales923@gmail.com'),
                 ('mfa_enabled', '1'),
+                ('mfa_allow_dev_preview', '0'),
                 ('mfa_expiry_minutes', '5'),
                 ('mfa_resend_cooldown', '60'),
                 ('mfa_test_recipient', 'pangilinanarisguillersaret@gmail.com')

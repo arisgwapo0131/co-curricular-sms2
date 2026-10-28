@@ -457,7 +457,7 @@ function patchSystemDatabaseSchemas(mysqli $conn, array &$messages, array &$erro
         'mfa_enabled'                   => '1',
         'mfa_expiry_minutes'            => '10',
         'mfa_resend_cooldown'           => '60',
-        'mfa_allow_dev_preview'         => '1',
+        'mfa_allow_dev_preview'         => '0',
         'smtp_host'                     => 'smtp.gmail.com',
         'smtp_port'                     => '587',
         'smtp_user'                     => '',

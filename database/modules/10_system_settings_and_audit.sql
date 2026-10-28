@@ -47,7 +47,7 @@ INSERT INTO `system_settings` (`setting_key`, `setting_value`) VALUES
 ('mfa_expiry_minutes', '5'),
 ('session_timeout_seconds', '120'),
 ('mfa_resend_cooldown', '60'),
-('mfa_allow_dev_preview', '1'),
+('mfa_allow_dev_preview', '0'),
 ('smtp_host', 'smtp.gmail.com'),
 ('smtp_port', '587'),
 ('smtp_user', 'cgales923@gmail.com'),
