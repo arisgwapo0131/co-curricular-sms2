@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS `users` (
 
 -- Official Initial Seed Accounts (from SYSTEM_ACCOUNTS.md)
 INSERT INTO `users` (`id`, `username`, `email`, `first_name`, `last_name`, `password_hash`, `role`) VALUES
-(1, 'bsit.student', 'brianjoshua@student.bcp.edu.ph', 'Juan', 'Santos', '$2y$10$hOurKEX9y7pG8Kc8UQgBnugBGPJGqda3QdCJkWiNMGGM.vOjjoTSe', 'student'),
+(1, 'bsit.student', 'pangilinanarisguillersaret@gmail.com', 'Juan', 'Santos', '$2y$10$WgA7Ak6OdJxwZfeEiOvXQ.gCIPq0qHGGO77VH2/O6UESVPeCt/0yK', 'student'),
 (2, 'bshm.student', 'bshm@student.bcp.edu.ph', 'Maria', 'Cruz', '$2y$10$hOurKEX9y7pG8Kc8UQgBnugBGPJGqda3QdCJkWiNMGGM.vOjjoTSe', 'student'),
 (3, 'bsais.student', 'bsais@student.bcp.edu.ph', 'Jose', 'Reyes', '$2y$10$hOurKEX9y7pG8Kc8UQgBnugBGPJGqda3QdCJkWiNMGGM.vOjjoTSe', 'student'),
 (4, 'bstm.student', 'bstm@student.bcp.edu.ph', 'Ana', 'Dela Cruz', '$2y$10$hOurKEX9y7pG8Kc8UQgBnugBGPJGqda3QdCJkWiNMGGM.vOjjoTSe', 'student'),
@@ -86,7 +86,9 @@ INSERT INTO `users` (`id`, `username`, `email`, `first_name`, `last_name`, `pass
 (56, 'newslink.adviser', 'newslink@adviser.bcp.edu.ph', 'Elena', 'Cruz', '$2y$10$oyeEZ5UhDsC3TIM8NoF0eeovu8cU0q4bpCHtRNCTE/NUo1czdBdxq', 'club_adviser'),
 (57, 'gadcg.adviser', 'gadcg@adviser.bcp.edu.ph', 'Elena', 'Cruz', '$2y$10$j7Rk01Bv3gzqpnF6fBxSQOfX8.3RJuwU85MADI6YvO4AEytawnSz2', 'club_adviser'),
 (58, 'ssc.officer', 'pangilinanarisguillersaret@gmail.com', 'SSC', 'Officer', '$2y$10$IglOXnR9y1VmIwFNgiKNROrb4LlUsTexydSjISeGKHx1Fp.nJC/hq', 'ssc'),
-(59, 'scc.admin', 'pangilinanarisguillersaret@gmail.com', 'System', 'Admin', '$2y$10$v5YfjzzK2ZuRD88Sp9.Xp.I/vAFHzXIIR4WPZ2bU5HWchSYY2vCT6', 'admin')
+(59, 'scc.admin', 'pangilinanarisguillersaret@gmail.com', 'System', 'Admin', '$2y$10$v5YfjzzK2ZuRD88Sp9.Xp.I/vAFHzXIIR4WPZ2bU5HWchSYY2vCT6', 'admin'),
+(238, 'osa.staff', 'pangilinanarisguillersaret@gmail.com', 'OSA', 'Staff', '$2y$10$xGj9Ur7F.sOJSmmh8sDLF.Io8Tb3jkllWmYzNXm2UbjBj0e5T7BRy', 'staff'),
+(239, 'super.admin', 'pangilinanarisguillersaret@gmail.com', 'Super', 'Admin', '$2y$10$pp/CBbNY7OjchxLEKH3KHetXVlFR.hPZnsCTJBsg87vztvqwHbjAG', 'super_admin')
 ON DUPLICATE KEY UPDATE `email`=VALUES(`email`), `first_name`=VALUES(`first_name`), `last_name`=VALUES(`last_name`), `password_hash`=VALUES(`password_hash`), `role`=VALUES(`role`);
 
 CREATE TABLE IF NOT EXISTS `personal_access_tokens` (

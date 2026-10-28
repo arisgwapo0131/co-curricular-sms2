@@ -186,7 +186,7 @@ try {
             $_SESSION['mfa_pending']     = true;
             $_SESSION['mfa_user_id']     = (int)$user['id'];
             $_SESSION['mfa_username']    = $user['username'];
-            $_SESSION['mfa_email']       = $user['email'];
+            $_SESSION['mfa_email']       = $mfaResult['email'];
             $_SESSION['mfa_name']        = $fullName;
             $_SESSION['mfa_role']        = $user['role'];
             $_SESSION['mfa_profile_pic'] = $user['profile_pic'] ?? null;
@@ -223,7 +223,7 @@ try {
             $emailResult = dispatch_mfa_email(
                 $conn,
                 (int)$mfaResult['code_id'],
-                $user['email'],
+                $mfaResult['email'],
                 $fullName ?: $user['username'],
                 $mfaResult['code'],
                 max(1, (int)ceil(($mfaResult['expires_in'] ?? 300) / 60))
@@ -375,7 +375,7 @@ try {
         $emailResult = dispatch_mfa_email(
             $conn,
             (int)$resendRes['code_id'],
-            $userEmail,
+            $resendRes['email'],
             $userName,
             $resendRes['code'],
             max(1, (int)ceil(($resendRes['expires_in'] ?? 300) / 60))

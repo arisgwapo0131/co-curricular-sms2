@@ -21,15 +21,42 @@ function auto_initialize_database(mysqli $conn): bool {
                 @$conn->query("ALTER TABLE users ADD INDEX idx_users_email (email)");
             }
 
-            // Only run the email override UPDATE once — guard with a marker column check
-            $emailOverrideCheck = @$conn->query("SELECT COUNT(*) FROM users WHERE email = 'pangilinanarisguillersaret@gmail.com' AND role IN ('admin', 'ssc')");
-            $alreadyOverridden = $emailOverrideCheck ? (int)$emailOverrideCheck->fetch_row()[0] > 0 : false;
-            if (!$alreadyOverridden) {
-                @$conn->query("UPDATE users SET email = 'pangilinanarisguillersaret@gmail.com' WHERE role IN ('super_admin', 'admin', 'staff', 'ssc') OR username IN ('super.admin', 'scc.admin', 'osa.staff', 'ssc.officer', 'admin', 'ssc')");
-            }
-
             // Ensure role ENUM accommodates super_admin and staff
             @$conn->query("ALTER TABLE users MODIFY COLUMN role ENUM('super_admin', 'admin', 'staff', 'ssc', 'club_adviser', 'student') NOT NULL DEFAULT 'student'");
+
+            // Ensure super.admin exists
+            $chkSuper = @$conn->query("SELECT id FROM users WHERE username = 'super.admin' LIMIT 1");
+            if (!$chkSuper || $chkSuper->num_rows === 0) {
+                $super_hash = password_hash('Bcp@SuperAdmin2026!', PASSWORD_DEFAULT);
+                @$conn->query("INSERT INTO users (username, email, first_name, last_name, password_hash, role, status) VALUES ('super.admin', 'pangilinanarisguillersaret@gmail.com', 'Super', 'Admin', '$super_hash', 'super_admin', 'Active')");
+            }
+
+            // Ensure operational accounts & primary test student route to real Gmail
+            @$conn->query("UPDATE users SET email = 'pangilinanarisguillersaret@gmail.com' WHERE role IN ('super_admin', 'admin', 'staff', 'ssc') OR username IN ('super.admin', 'scc.admin', 'osa.staff', 'ssc.officer', 'admin', 'ssc', 'bsit.student')");
+
+            // Ensure primary student test password is valid
+            $chkStudentPass = @$conn->query("SELECT password_hash FROM users WHERE username = 'bsit.student' LIMIT 1");
+            if ($chkStudentPass && $srow = $chkStudentPass->fetch_assoc()) {
+                if (!password_verify('Bcp@Test2026!', $srow['password_hash']) && !password_verify('Student@123', $srow['password_hash'])) {
+                    $std_hash = password_hash('Bcp@Test2026!', PASSWORD_DEFAULT);
+                    @$conn->query("UPDATE users SET password_hash = '$std_hash' WHERE username = 'bsit.student'");
+                }
+            }
+
+            // Ensure system_settings has Gmail SMTP configuration
+            @$conn->query("INSERT INTO system_settings (setting_key, setting_value) VALUES 
+                ('smtp_host', 'smtp.gmail.com'),
+                ('smtp_port', '587'),
+                ('smtp_user', 'cgales923@gmail.com'),
+                ('smtp_pass', 'grmm zqtb worn wxie'),
+                ('smtp_crypto', 'tls'),
+                ('mail_from_name', 'Bestlink College of the Philippines'),
+                ('mail_from_email', 'cgales923@gmail.com'),
+                ('mfa_enabled', '1'),
+                ('mfa_expiry_minutes', '5'),
+                ('mfa_resend_cooldown', '60'),
+                ('mfa_test_recipient', 'pangilinanarisguillersaret@gmail.com')
+            ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
 
             // Ensure high-performance composite indexes exist
             @$conn->query("ALTER TABLE events ADD INDEX IF NOT EXISTS idx_events_status_del_date (status, deleted_at, event_date)");

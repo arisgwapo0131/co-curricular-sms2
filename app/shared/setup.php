@@ -113,7 +113,7 @@ function seedSystemAccountsAndClubs(mysqli $conn, array &$messages, array &$erro
 
     // 2. 16 Official Program Students
     $students_list = [
-        ['2024-10001', 'Bachelor of Science in Information Technology', 'Juan', 'Santos', 'bsit.student', 'bsit@student.bcp.edu.ph', '2nd Year', 'IT-2A'],
+        ['2024-10001', 'Bachelor of Science in Information Technology', 'Juan', 'Santos', 'bsit.student', 'pangilinanarisguillersaret@gmail.com', '2nd Year', 'IT-2A'],
         ['2024-10002', 'Bachelor of Science in Hospitality Management', 'Maria', 'Cruz', 'bshm.student', 'bshm@student.bcp.edu.ph', '1st Year', 'HM-1B'],
         ['2024-10003', 'Bachelor of Science in Accounting Information System', 'Jose', 'Reyes', 'bsais.student', 'bsais@student.bcp.edu.ph', '3rd Year', 'AIS-3A'],
         ['2024-10004', 'Bachelor of Science in Tourism Management', 'Ana', 'Dela Cruz', 'bstm.student', 'bstm@student.bcp.edu.ph', '2nd Year', 'TM-2C'],

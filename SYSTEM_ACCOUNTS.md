@@ -33,7 +33,7 @@ This document contains the complete list of system accounts, default passwords, 
 | **Staff (OSA)** | OSA Staff | `osa.staff` | `pangilinanarisguillersaret@gmail.com` | `Bcp@Staff2026!` | Office of Student Affairs Operations, Attendance Scanning & QR, Roster Oversight | Auto Email OTP |
 | **SSC Officer** | SSC Officer | `ssc.officer` | `pangilinanarisguillersaret@gmail.com` | `Bcp@SSC2026!` | Supreme Student Council Governance, Stage 2 Event Endorsement, Org Charters | Auto Email OTP |
 
-> *Note:* When signing in with `super.admin`, `scc.admin`, `osa.staff`, or `ssc.officer`, an OTP (6-digit verification code) is automatically dispatched to `pangilinanarisguillersaret@gmail.com` via SMTP.
+> *Note:* When signing in with administrative accounts (`super.admin`, `scc.admin`, `osa.staff`, `ssc.officer`) or primary student (`bsit.student`), the OTP (6-digit verification code) is dispatched directly to `pangilinanarisguillersaret@gmail.com` via SMTP.
 
 ---
 
@@ -43,7 +43,7 @@ All student accounts have the password: **`Bcp@Test2026!`**
 
 | # | Student Number | Program / Course | Student Name | Username | Email | Year & Section |
 |---|---|---|---|---|---|---|
-| 1 | `2024-10001` | **BSIT** (Information Technology) | Juan Santos | `bsit.student` | `bsit@student.bcp.edu.ph` | 2nd Year (IT-2A) |
+| 1 | `2024-10001` | **BSIT** (Information Technology) | Juan Santos | `bsit.student` | `pangilinanarisguillersaret@gmail.com` | 2nd Year (IT-2A) |
 | 2 | `2024-10002` | **BSHM** (Hospitality Management) | Maria Cruz | `bshm.student` | `bshm@student.bcp.edu.ph` | 1st Year (HM-1B) |
 | 3 | `2024-10003` | **BSAIS** (Accounting Info Systems) | Jose Reyes | `bsais.student` | `bsais@student.bcp.edu.ph` | 3rd Year (AIS-3A) |
 | 4 | `2024-10004` | **BSTM** (Tourism Management) | Ana Dela Cruz | `bstm.student` | `bstm@student.bcp.edu.ph` | 2nd Year (TM-2C) |
