@@ -87,6 +87,14 @@ $departments   = count(array_unique(array_filter(array_column($academic_programs
     .form-group-admin input, .form-group-admin select, .form-group-admin textarea { width:100%; padding:9px 12px; border:1.5px solid #cbd5e1; border-radius:8px; font-size:0.88rem; color:#1e293b; background:#fff; font-family:inherit; }
     .form-group-admin input:focus, .form-group-admin select:focus { outline:none; border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,0.1); }
     .admin-alert { padding:14px 18px; border-radius:10px; margin-bottom:20px; font-size:0.88rem; font-weight:600; display:none; }
+    @keyframes rowPulseAnim {
+      0% { background-color: #dcfce7 !important; }
+      50% { background-color: #bbf7d0 !important; }
+      100% { background-color: transparent; }
+    }
+    .row-pulse-highlight td {
+      animation: rowPulseAnim 3.5s ease-out forwards !important;
+    }
 
     /* Academic Degree Programs Compact Table Layout */
     #academicProgTable {
@@ -211,8 +219,17 @@ require_once __DIR__ . '/../shared/sidebar.php';
         <i class="fa-solid fa-graduation-cap" style="color:#2563eb;"></i>
         Academic Master Data Management
       </h2>
+      <?php
+      $role_labels = [
+          'super_admin' => 'Super Administrator',
+          'admin'       => 'System Administrator',
+          'ssc'         => 'Supreme Student Council (SSC)',
+          'staff'       => 'OSA Staff'
+      ];
+      $display_role = $role_labels[$sess_role] ?? ucwords(str_replace('_', ' ', $sess_role));
+      ?>
       <div style="font-size:0.8rem; color:#64748b; font-weight:600;">
-        Role: <strong style="color:#0f172a;">System Administrator</strong>
+        Role: <strong style="color:#0f172a;"><?= htmlspecialchars($display_role) ?></strong>
       </div>
     </div>
 
@@ -287,9 +304,9 @@ require_once __DIR__ . '/../shared/sidebar.php';
                   No academic programs match the search criteria.
                 </td>
               </tr>
-              <?php foreach ($academic_programs as $p): ?>
-              <tr class="prog-row" data-search="<?= strtolower($p['code'] . ' ' . $p['name'] . ' ' . ($p['department'] ?? '')) ?>">
-                <td style="text-align:center;"><strong><?= $p['id'] ?></strong></td>
+              <?php $row_num = 1; foreach ($academic_programs as $p): ?>
+              <tr class="prog-row" id="prog-row-<?= $p['id'] ?>" data-prog-id="<?= $p['id'] ?>" data-search="<?= strtolower($p['code'] . ' ' . $p['name'] . ' ' . ($p['department'] ?? '')) ?>">
+                <td style="text-align:center; color:#64748b; font-weight:700;"><?= $row_num++ ?></td>
                 <td><code><strong><?= htmlspecialchars($p['code']) ?></strong></code></td>
                 <td><strong style="color:#0f172a;"><?= htmlspecialchars($p['name']) ?></strong></td>
                 <td><?= htmlspecialchars($p['department'] ?? '—') ?></td>
@@ -332,6 +349,7 @@ require_once __DIR__ . '/../shared/sidebar.php';
     </div>
     <form id="addProgramForm" onsubmit="handleAddProgram(event)">
       <div class="modal-body">
+        <div id="addProgModalAlert" class="admin-alert" style="display:none; margin-bottom:14px; padding:10px 14px; border-radius:8px; font-size:0.84rem; font-weight:600;"></div>
         <div class="form-group-admin">
           <label>Program Code <span style="color:#ef4444;">*</span></label>
           <input type="text" name="code" required placeholder="e.g. BSIT, BSHM, BEEd"/>
@@ -354,7 +372,7 @@ require_once __DIR__ . '/../shared/sidebar.php';
       </div>
       <div class="modal-footer">
         <button type="button" class="card-btn" style="background:#f1f5f9; color:#475569;" onclick="closeModal('addProgramModal')">Cancel</button>
-        <button type="submit" class="card-btn" style="background:#16a34a; color:#fff; font-weight:700;"><i class="fa-solid fa-plus"></i> Save Program</button>
+        <button type="submit" id="addProgSubmitBtn" class="card-btn" style="background:#16a34a; color:#fff; font-weight:700;"><i class="fa-solid fa-plus"></i> Save Program</button>
       </div>
     </form>
   </div>
@@ -370,6 +388,7 @@ require_once __DIR__ . '/../shared/sidebar.php';
     <form id="editProgramForm" onsubmit="handleUpdateProgram(event)">
       <input type="hidden" name="id" id="editProgId"/>
       <div class="modal-body">
+        <div id="editProgModalAlert" class="admin-alert" style="display:none; margin-bottom:14px; padding:10px 14px; border-radius:8px; font-size:0.84rem; font-weight:600;"></div>
         <div class="form-group-admin">
           <label>Program Code <span style="color:#ef4444;">*</span></label>
           <input type="text" name="code" id="editProgCode" required/>
@@ -392,7 +411,7 @@ require_once __DIR__ . '/../shared/sidebar.php';
       </div>
       <div class="modal-footer">
         <button type="button" class="card-btn" style="background:#f1f5f9; color:#475569;" onclick="closeModal('editProgramModal')">Cancel</button>
-        <button type="submit" class="card-btn" style="background:#2563eb; color:#fff; font-weight:700;"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
+        <button type="submit" id="editProgSubmitBtn" class="card-btn" style="background:#2563eb; color:#fff; font-weight:700;"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
       </div>
     </form>
   </div>
@@ -409,9 +428,22 @@ function showAlert(msg, type) {
   el.style.display = 'block';
   el.style.background = type === 'success' ? '#dcfce7' : '#fef2f2';
   el.style.color      = type === 'success' ? '#166534' : '#991b1b';
-  el.style.border     = `1px solid ${type === 'success' ? '#bbf7d0' : '#fecaca'}`;
-  el.textContent = msg;
-  setTimeout(() => { el.style.display = 'none'; }, 4000);
+  el.style.border     = `1.5px solid ${type === 'success' ? '#86efac' : '#fca5a5'}`;
+  el.innerHTML        = `<i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i> ` + msg;
+  setTimeout(() => { el.style.display = 'none'; }, 4500);
+}
+
+function showModalAlert(alertId, msg, type) {
+  const el = document.getElementById(alertId);
+  if (!el) {
+    showAlert(msg, type);
+    return;
+  }
+  el.style.display = 'block';
+  el.style.background = type === 'success' ? '#dcfce7' : '#fef2f2';
+  el.style.color      = type === 'success' ? '#166534' : '#991b1b';
+  el.style.border     = `1.5px solid ${type === 'success' ? '#86efac' : '#fca5a5'}`;
+  el.innerHTML        = `<i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i> ` + msg;
 }
 
 function openModal(id) { document.getElementById(id)?.classList.add('active'); }
@@ -451,27 +483,37 @@ function initAcademicProgPagination() {
   const tbl = document.getElementById('academicProgTable');
   if (tbl && window.initTablePagination && !tbl._paginator) {
     window.initTablePagination(tbl, {
-      pageSize: 10,
+      pageSize: 25,
       showPageSizeSelector: false,
       showInfo: false
     });
   }
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initAcademicProgPagination);
-} else {
-  initAcademicProgPagination();
-}
-
 function openAddProgramModal() {
-  document.getElementById('addProgramForm')?.reset();
+  const form = document.getElementById('addProgramForm');
+  if (form) form.reset();
+  const alertEl = document.getElementById('addProgModalAlert');
+  if (alertEl) { alertEl.style.display = 'none'; alertEl.innerHTML = ''; }
+  const btn = document.getElementById('addProgSubmitBtn');
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-plus"></i> Save Program'; }
   openModal('addProgramModal');
 }
 
 function handleAddProgram(e) {
   e.preventDefault();
-  const fd = new FormData(e.target);
+  const form = e.target;
+  const btn = document.getElementById('addProgSubmitBtn');
+  const alertEl = document.getElementById('addProgModalAlert');
+  if (alertEl) { alertEl.style.display = 'none'; alertEl.innerHTML = ''; }
+
+  const origBtnHtml = btn ? btn.innerHTML : '<i class="fa-solid fa-plus"></i> Save Program';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+  }
+
+  const fd = new FormData(form);
   fd.append('action', 'create_academic_program');
   if (CSRF_TOKEN) fd.append('csrf_token', CSRF_TOKEN);
 
@@ -479,14 +521,27 @@ function handleAddProgram(e) {
     .then(r => r.json())
     .then(res => {
       if (res.success) {
-        showAlert(res.message, 'success');
+        if (res.id) {
+          sessionStorage.setItem('highlight_academic_prog_id', res.id);
+        }
+        sessionStorage.setItem('flash_academic_msg', res.message || 'Academic program saved successfully.');
         closeModal('addProgramModal');
-        setTimeout(() => location.reload(), 1000);
+        location.reload();
       } else {
-        showAlert(res.message, 'error');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = origBtnHtml;
+        }
+        showModalAlert('addProgModalAlert', res.message || 'Failed to save academic program.', 'error');
       }
     })
-    .catch(() => showAlert('Failed to save academic program.', 'error'));
+    .catch(err => {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = origBtnHtml;
+      }
+      showModalAlert('addProgModalAlert', 'A server or network error occurred. Please try again.', 'error');
+    });
 }
 
 function openEditProgramModal(p) {
@@ -495,12 +550,27 @@ function openEditProgramModal(p) {
   document.getElementById('editProgName').value = p.name;
   document.getElementById('editProgDept').value = p.department || '';
   document.getElementById('editProgStatus').value = p.status || 'Active';
+  const alertEl = document.getElementById('editProgModalAlert');
+  if (alertEl) { alertEl.style.display = 'none'; alertEl.innerHTML = ''; }
+  const btn = document.getElementById('editProgSubmitBtn');
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Changes'; }
   openModal('editProgramModal');
 }
 
 function handleUpdateProgram(e) {
   e.preventDefault();
-  const fd = new FormData(e.target);
+  const form = e.target;
+  const btn = document.getElementById('editProgSubmitBtn');
+  const alertEl = document.getElementById('editProgModalAlert');
+  if (alertEl) { alertEl.style.display = 'none'; alertEl.innerHTML = ''; }
+
+  const origBtnHtml = btn ? btn.innerHTML : '<i class="fa-solid fa-floppy-disk"></i> Save Changes';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+  }
+
+  const fd = new FormData(form);
   fd.append('action', 'update_academic_program');
   if (CSRF_TOKEN) fd.append('csrf_token', CSRF_TOKEN);
 
@@ -508,14 +578,27 @@ function handleUpdateProgram(e) {
     .then(r => r.json())
     .then(res => {
       if (res.success) {
-        showAlert(res.message, 'success');
+        if (res.id) {
+          sessionStorage.setItem('highlight_academic_prog_id', res.id);
+        }
+        sessionStorage.setItem('flash_academic_msg', res.message || 'Academic program updated successfully.');
         closeModal('editProgramModal');
-        setTimeout(() => location.reload(), 1000);
+        location.reload();
       } else {
-        showAlert(res.message, 'error');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = origBtnHtml;
+        }
+        showModalAlert('editProgModalAlert', res.message || 'Failed to update academic program.', 'error');
       }
     })
-    .catch(() => showAlert('Failed to update academic program.', 'error'));
+    .catch(err => {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = origBtnHtml;
+      }
+      showModalAlert('editProgModalAlert', 'A server or network error occurred. Please try again.', 'error');
+    });
 }
 
 async function deleteAcademicProgram(id, code) {
@@ -534,14 +617,50 @@ async function deleteAcademicProgram(id, code) {
     .then(r => r.json())
     .then(res => {
       if (res.success) {
-        showAlert(res.message, 'success');
-        setTimeout(() => location.reload(), 1000);
+        sessionStorage.setItem('flash_academic_msg', res.message || 'Academic program removed successfully.');
+        location.reload();
       } else {
         showAlert(res.message, 'error');
       }
     })
     .catch(() => showAlert('Network error.', 'error'));
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  initAcademicProgPagination();
+
+  // Handle flash message from redirect
+  const flashMsg = sessionStorage.getItem('flash_academic_msg');
+  if (flashMsg) {
+    showAlert(flashMsg, 'success');
+    sessionStorage.removeItem('flash_academic_msg');
+  }
+
+  // Handle highlight for newly created or updated program
+  const highlightId = sessionStorage.getItem('highlight_academic_prog_id');
+  if (highlightId) {
+    sessionStorage.removeItem('highlight_academic_prog_id');
+    const targetRow = document.getElementById('prog-row-' + highlightId);
+    if (targetRow) {
+      const tbl = document.getElementById('academicProgTable');
+      if (tbl && tbl._paginator) {
+        const rows = tbl._paginator.getAllRows();
+        const rowIdx = rows.indexOf(targetRow);
+        if (rowIdx !== -1) {
+          const targetPage = Math.floor(rowIdx / tbl._paginator.pageSize) + 1;
+          tbl._paginator.currentPage = targetPage;
+          tbl._paginator.render();
+        }
+      }
+
+      targetRow.classList.add('row-pulse-highlight');
+      targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => {
+        targetRow.classList.remove('row-pulse-highlight');
+      }, 3500);
+    }
+  }
+});
 </script>
 </body>
 </html>

@@ -333,6 +333,10 @@ switch ($action) {
         $ev = $conn->query("SELECT id, title, created_by, event_date, venue, status FROM events WHERE id = $id")->fetch_assoc();
         if (!$ev) eRespond(false, 'Event not found.');
 
+        if ($ev['status'] === 'Pending SSC') {
+            eRespond(false, 'This event is currently awaiting Stage 2 SSC Endorsement. To bypass SSC review and force calendar clearance, please use Administrative Override with explicit justification.');
+        }
+
         // Enforce venue double-booking check: prevent conflicting approvals without override
         if (!empty($ev['venue']) && !empty($ev['event_date'])) {
             $conf_chk = $conn->prepare("

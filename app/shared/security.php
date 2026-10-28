@@ -387,7 +387,7 @@ function load_user_permissions(?mysqli $db = null, ?string $role = null, ?int $u
             'attendance.view.analytics', 'attendance.override', 'elections.oversight',
             'achievements.view', 'achievements.verify.ssc',
             'announcements.create.council', 'reports.view.institutional', 'reports.export',
-            'users.view.directory', 'users.view_own'
+            'users.view.directory', 'users.view_own', 'master_data.academic'
         ],
         'staff' => [
             'dashboard.view.institutional', 'organization.view', 'membership.review.all',

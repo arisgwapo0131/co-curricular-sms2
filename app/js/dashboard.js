@@ -21,30 +21,36 @@ const hamburgerBtn   = document.getElementById('hamburgerBtn');
 const sidebar        = document.getElementById('sidebar');
 const sidebarOverlay = document.getElementById('sidebarOverlay');
 
+function syncSidebarState() {
+    if (!sidebar) return;
+    const isCollapsed = sidebar.classList.contains('collapsed');
+    document.body.classList.toggle('sidebar-collapsed', isCollapsed);
+    if (sidebarOverlay) {
+        sidebarOverlay.classList.toggle('active', !isCollapsed && window.innerWidth <= 900);
+    }
+}
+
 // On mobile (<= 900px) the sidebar is collapsed by default
 if (window.innerWidth <= 900 && sidebar) {
     sidebar.classList.add('collapsed');
 }
+syncSidebarState();
 
 // Window resize handler to maintain clean responsive states
 window.addEventListener('resize', () => {
     if (window.innerWidth <= 900) {
         if (sidebar && !sidebar.classList.contains('collapsed')) {
             sidebar.classList.add('collapsed');
-            if (sidebarOverlay) sidebarOverlay.classList.remove('active');
         }
-    } else {
-        if (sidebarOverlay) sidebarOverlay.classList.remove('active');
     }
+    syncSidebarState();
 });
 
 hamburgerBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
     if (sidebar) {
         sidebar.classList.toggle('collapsed');
-        if (sidebarOverlay) {
-            sidebarOverlay.classList.toggle('active', !sidebar.classList.contains('collapsed'));
-        }
+        syncSidebarState();
     }
 });
 
@@ -52,7 +58,7 @@ hamburgerBtn?.addEventListener('click', (e) => {
 if (sidebarOverlay) {
     sidebarOverlay.addEventListener('click', () => {
         sidebar.classList.add('collapsed');
-        sidebarOverlay.classList.remove('active');
+        syncSidebarState();
     });
 }
 
@@ -65,7 +71,7 @@ if (sidebar) {
 document.addEventListener('click', () => {
     if (window.innerWidth <= 900 && sidebar && !sidebar.classList.contains('collapsed')) {
         sidebar.classList.add('collapsed');
-        if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+        syncSidebarState();
     }
 });
 

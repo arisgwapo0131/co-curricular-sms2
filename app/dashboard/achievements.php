@@ -158,6 +158,7 @@ if ($sess_role === 'club_adviser') {
   <link rel="stylesheet" href="../css/page-loader.css"/>
   <link rel="stylesheet" href="../vendor/fontawesome/css/all.min.css"/>
   <meta name="loader-logo" content="../images/BCP_LOGO.png"/>
+  <meta name="csrf-token" content="<?= csrf_token() ?>"/>
   <script src="../js/page-loader.js"></script>
   <style>
     /* Metric Cards Grid */
@@ -360,13 +361,6 @@ require_once __DIR__ . '/../shared/sidebar.php';
           Institutional Honors &bull; Competition Laurels &bull; Official Student Recognition Ledger
         </div>
       </div>
-      <?php if (can('achievements.submit')): ?>
-        <div style="display:flex; gap:10px; align-items:center;">
-          <button class="card-btn" onclick="openSubmitModal()" style="height:38px; padding:0 18px; border-radius:10px; font-weight:700; background:#2563eb; color:#fff; display:inline-flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer; border:none; box-shadow:0 2px 6px rgba(37,99,235,0.25);">
-            <i class="fa-solid fa-plus-circle"></i> Submit Achievement
-          </button>
-        </div>
-      <?php endif; ?>
     </div>
 
     <div class="content-body">
@@ -495,7 +489,7 @@ require_once __DIR__ . '/../shared/sidebar.php';
                 <!-- 6. Evidence -->
                 <td>
                   <?php if (!empty($a['proof_file'])): ?>
-                    <button type="button" class="card-btn" style="padding:4px 8px; font-size:0.75rem; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:6px; cursor:pointer;" onclick="openProofModal(<?= htmlspecialchars(json_encode($a), ENT_QUOTES) ?>)">
+                    <button type="button" class="card-btn" style="padding:4px 8px; font-size:0.75rem; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:6px; cursor:pointer;" onclick="openProofModal(<?= (int)$a['id'] ?>)">
                       <i class="fa-solid fa-paperclip"></i> View Proof
                     </button>
                   <?php else: ?>
@@ -529,13 +523,13 @@ require_once __DIR__ . '/../shared/sidebar.php';
                   <div class="action-btn-group" style="justify-content:center; gap:4px; flex-wrap:nowrap;">
                     <?php if (can_any(['achievements.verify.ssc', 'achievements.admin'])): ?>
                       <?php if ($a['status'] === 'Pending'): ?>
-                        <button type="button" class="card-btn" style="background:#16a34a; color:#fff; padding:4px 8px; font-size:0.73rem; border-radius:6px; border:none; cursor:pointer; white-space:nowrap;" title="Verify and endorse achievement" onclick="verifyAch(<?= $a['id'] ?>, 'verify')">
+                        <button type="button" class="card-btn" style="background:#16a34a; color:#fff; padding:4px 8px; font-size:0.73rem; border-radius:6px; border:none; cursor:pointer; white-space:nowrap;" title="Verify and endorse achievement" onclick="verifyAch(<?= (int)$a['id'] ?>, 'verify')">
                           <i class="fa-solid fa-check"></i> Verify
                         </button>
-                        <button type="button" class="card-btn btn-danger" style="padding:4px 8px; font-size:0.73rem; border-radius:6px; cursor:pointer; white-space:nowrap;" title="Reject submission" onclick="openRejectModal(<?= $a['id'] ?>, '<?= htmlspecialchars(addslashes($a['title'])) ?>')">
+                        <button type="button" class="card-btn btn-danger" style="padding:4px 8px; font-size:0.73rem; border-radius:6px; cursor:pointer; white-space:nowrap;" title="Reject submission" onclick="openRejectModal(<?= (int)$a['id'] ?>)">
                           <i class="fa-solid fa-times"></i> Reject
                         </button>
-                        <button type="button" class="card-btn" style="background:#f59e0b; color:#fff; padding:4px 8px; font-size:0.73rem; border-radius:6px; border:none; cursor:pointer; white-space:nowrap;" title="Request Clarification" onclick="openClarifyModal(<?= $a['id'] ?>, '<?= htmlspecialchars(addslashes($a['title'])) ?>')">
+                        <button type="button" class="card-btn" style="background:#f59e0b; color:#fff; padding:4px 8px; font-size:0.73rem; border-radius:6px; border:none; cursor:pointer; white-space:nowrap;" title="Request Clarification" onclick="openClarifyModal(<?= (int)$a['id'] ?>)">
                           <i class="fa-solid fa-comment-dots"></i> Clarify
                         </button>
                       <?php else: ?>
@@ -545,13 +539,13 @@ require_once __DIR__ . '/../shared/sidebar.php';
                         <button type="button" class="card-btn btn-disabled" disabled style="background:#e2e8f0; color:#94a3b8; border:1px solid #cbd5e1; padding:4px 8px; font-size:0.73rem; border-radius:6px; cursor:not-allowed; opacity:0.65; white-space:nowrap;" title="Rejection unavailable (Status: <?= htmlspecialchars($a['status']) ?>)">
                           <i class="fa-solid fa-times"></i> Reject
                         </button>
-                        <button type="button" class="card-btn" style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; padding:4px 8px; font-size:0.73rem; border-radius:6px; cursor:pointer; white-space:nowrap;" title="View/Update Clarification Note" onclick="openClarifyModal(<?= $a['id'] ?>, '<?= htmlspecialchars(addslashes($a['title'])) ?>')">
+                        <button type="button" class="card-btn" style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; padding:4px 8px; font-size:0.73rem; border-radius:6px; cursor:pointer; white-space:nowrap;" title="View/Update Clarification Note" onclick="openClarifyModal(<?= (int)$a['id'] ?>)">
                           <i class="fa-solid fa-comment-dots"></i> Clarify
                         </button>
                       <?php endif; ?>
                     <?php endif; ?>
                     <!-- Universal View Details & Proof button -->
-                    <button type="button" class="card-btn" style="background:#f8fafc; color:#334155; border:1px solid #cbd5e1; padding:4px 8px; font-size:0.73rem; border-radius:6px; cursor:pointer; white-space:nowrap;" title="View Details & Proof" onclick="openProofModal(<?= htmlspecialchars(json_encode($a), ENT_QUOTES) ?>)">
+                    <button type="button" class="card-btn" style="background:#f8fafc; color:#334155; border:1px solid #cbd5e1; padding:4px 8px; font-size:0.73rem; border-radius:6px; cursor:pointer; white-space:nowrap;" title="View Details & Proof" onclick="openProofModal(<?= (int)$a['id'] ?>)">
                       <i class="fa-solid fa-eye"></i> Details
                     </button>
                   </div>
@@ -696,13 +690,21 @@ require_once __DIR__ . '/../shared/sidebar.php';
   </div>
 </div>
 
+<script>
+window.ACHIEVEMENTS_DATA = <?= json_encode(array_column($achievements, null, 'id'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+</script>
 <script src="../js/dashboard.js?v=<?= filemtime(__DIR__ . '/../js/dashboard.js') ?>"></script>
 <script src="../js/table-pagination.js"></script>
 <script>
+const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.content || '<?= csrf_token() ?>';
+
 // -- Alert Helper ----------------------------------------------
 function showAlert(msg, type) {
   const el = document.getElementById('achAlert');
-  if (!el) return;
+  if (!el) {
+    if (type === 'error') alert(msg);
+    return;
+  }
   el.style.display = 'block';
   el.style.background = type === 'success' ? '#dcfce7' : '#fef2f2';
   el.style.color      = type === 'success' ? '#166534' : '#991b1b';
@@ -718,7 +720,7 @@ let currentStatusFilter = 'all';
 function filterStatus(status, btn) {
   currentStatusFilter = status;
   document.querySelectorAll('.status-tab').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+  if (btn) btn.classList.add('active');
   applyFilters();
 }
 
@@ -728,20 +730,32 @@ function filterAchTable() {
 
 function applyFilters() {
   const q = document.getElementById('achSearchInput')?.value.toLowerCase().trim() || '';
+  let visibleCount = 0;
   document.querySelectorAll('.ach-table-row').forEach(row => {
     const rowStatus = row.dataset.status;
     const matchesStatus = (currentStatusFilter === 'all' || rowStatus === currentStatusFilter);
     const matchesSearch = !q || row.textContent.toLowerCase().includes(q);
-    row.style.display = (matchesStatus && matchesSearch) ? '' : 'none';
+    const show = (matchesStatus && matchesSearch);
+    row.style.display = show ? '' : 'none';
+    if (show) visibleCount++;
   });
 }
 
 // -- Submit Modal Handling ------------------------------------
 const submitModal = document.getElementById('submitAchModal');
-document.getElementById('openSubmitBtn')?.addEventListener('click', () => { submitModal?.classList.add('active'); });
-document.getElementById('closeAchModal')?.addEventListener('click', () => { submitModal?.classList.remove('active'); });
-document.getElementById('cancelAchBtn')?.addEventListener('click', () => { submitModal?.classList.remove('active'); });
-submitModal?.addEventListener('click', e => { if (e.target === submitModal) submitModal.classList.remove('active'); });
+
+function openSubmitModal() {
+  if (submitModal) submitModal.classList.add('active');
+}
+
+function closeSubmitModal() {
+  if (submitModal) submitModal.classList.remove('active');
+}
+
+document.getElementById('openSubmitBtn')?.addEventListener('click', openSubmitModal);
+document.getElementById('closeAchModal')?.addEventListener('click', closeSubmitModal);
+document.getElementById('cancelAchBtn')?.addEventListener('click', closeSubmitModal);
+submitModal?.addEventListener('click', e => { if (e.target === submitModal) closeSubmitModal(); });
 
 document.getElementById('submitAchBtn')?.addEventListener('click', function() {
   const title       = document.getElementById('achTitle').value.trim();
@@ -761,6 +775,7 @@ document.getElementById('submitAchBtn')?.addEventListener('click', function() {
 
   const fd = new FormData();
   fd.set('action', 'submit');
+  fd.set('csrf_token', CSRF_TOKEN);
   fd.set('title', title);
   fd.set('competition', competition);
   fd.set('award_date', date);
@@ -776,14 +791,14 @@ document.getElementById('submitAchBtn')?.addEventListener('click', function() {
       this.disabled = false;
       this.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit for Verification';
       if (data.success) {
-        submitModal.classList.remove('active');
-        showAlert(data.message || 'Achievement submitted for SSC verification.', 'success');
+        closeSubmitModal();
+        showAlert(data.message || 'Achievement submitted for verification.', 'success');
         ['achTitle','achCompetition','achDate','achNotes'].forEach(id => {
           const el = document.getElementById(id);
           if (el) el.value = '';
         });
         if (fileInput) fileInput.value = '';
-        setTimeout(() => location.reload(), 1400);
+        setTimeout(() => location.reload(), 1200);
       } else {
         showAlert(data.message || 'Submission failed.', 'error');
       }
@@ -800,7 +815,13 @@ const proofModal = document.getElementById('proofDetailsModal');
 function closeProofModal() { proofModal?.classList.remove('active'); }
 proofModal?.addEventListener('click', e => { if (e.target === proofModal) closeProofModal(); });
 
-function openProofModal(item) {
+function openProofModal(itemOrId) {
+  const item = (typeof itemOrId === 'object' && itemOrId !== null)
+    ? itemOrId
+    : (window.ACHIEVEMENTS_DATA && window.ACHIEVEMENTS_DATA[itemOrId] ? window.ACHIEVEMENTS_DATA[itemOrId] : null);
+
+  if (!item) return;
+
   const body = document.getElementById('proofModalBody');
   if (!body) return;
 
@@ -896,27 +917,31 @@ function closeClarifyModal() { clarifyModal?.classList.remove('active'); }
 clarifyModal?.addEventListener('click', e => { if (e.target === clarifyModal) closeClarifyModal(); });
 
 function openClarifyModal(id, title) {
+  const ach = (window.ACHIEVEMENTS_DATA && window.ACHIEVEMENTS_DATA[id]) ? window.ACHIEVEMENTS_DATA[id] : null;
+  const t = title || (ach ? ach.title : ('Record #' + id));
   document.getElementById('clarifyAchId').value = id;
-  document.getElementById('clarifyAchTitle').textContent = 'Achievement: ' + title;
-  document.getElementById('clarifyNotes').value = '';
+  document.getElementById('clarifyAchTitle').textContent = 'Achievement: ' + t;
+  document.getElementById('clarifyNotes').value = (ach && ach.notes) ? ach.notes : '';
   clarifyModal?.classList.add('active');
 }
 
-function submitClarify() {
+async function submitClarify() {
   const id    = document.getElementById('clarifyAchId').value;
   const notes = document.getElementById('clarifyNotes').value.trim();
   const btn   = document.getElementById('submitClarifyBtn');
 
   if (!notes) {
-    window.alert('Please enter clarification notes for the requester.', 'warning');
+    alert('Please enter clarification notes for the requester.');
     return;
   }
 
-  const confirmed = await window.showConfirmModal(
-    'Request Clarification?',
-    'Do you want to request clarification from the student for this achievement application?',
-    { type: 'warning', warning: true, confirmText: 'Yes, Send Clarification' }
-  );
+  const confirmed = typeof window.showConfirmModal === 'function'
+    ? await window.showConfirmModal(
+        'Request Clarification?',
+        'Do you want to request clarification from the student for this achievement application?',
+        { type: 'warning', warning: true, confirmText: 'Yes, Send Clarification' }
+      )
+    : window.confirm('Do you want to request clarification from the student for this achievement application?');
   if (!confirmed) return;
 
   btn.disabled = true;
@@ -924,6 +949,7 @@ function submitClarify() {
 
   const fd = new FormData();
   fd.set('action', 'clarify');
+  fd.set('csrf_token', CSRF_TOKEN);
   fd.set('id', id);
   fd.set('notes', notes);
 
@@ -937,13 +963,13 @@ function submitClarify() {
         showAlert(data.message || 'Clarification request saved and sent.', 'success');
         setTimeout(() => location.reload(), 1200);
       } else {
-        window.alert(data.message || 'Failed to send clarification.', 'error');
+        alert(data.message || 'Failed to send clarification.');
       }
     })
     .catch(() => {
       btn.disabled = false;
       btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send Clarification';
-      window.alert('Network error occurred.', 'error');
+      alert('Network error occurred.');
     });
 }
 
@@ -953,8 +979,10 @@ function closeRejectModal() { rejectModal?.classList.remove('active'); }
 rejectModal?.addEventListener('click', e => { if (e.target === rejectModal) closeRejectModal(); });
 
 function openRejectModal(id, title) {
+  const ach = (window.ACHIEVEMENTS_DATA && window.ACHIEVEMENTS_DATA[id]) ? window.ACHIEVEMENTS_DATA[id] : null;
+  const t = title || (ach ? ach.title : ('Record #' + id));
   document.getElementById('rejectAchId').value = id;
-  document.getElementById('rejectAchTitle').textContent = 'Achievement: ' + title;
+  document.getElementById('rejectAchTitle').textContent = 'Achievement: ' + t;
   document.getElementById('rejectNotes').value = '';
   rejectModal?.classList.add('active');
 }
@@ -965,15 +993,17 @@ async function submitReject() {
   const btn   = document.getElementById('submitRejectBtn');
 
   if (!notes) {
-    window.alert('Please provide a reason for rejection.', 'warning');
+    alert('Please provide a reason for rejection.');
     return;
   }
 
-  const confirmed = await window.showConfirmModal(
-    'Reject Achievement Application?',
-    'Do you want to reject this achievement application with the stated reason?',
-    { type: 'error', danger: true, confirmText: 'Yes, Reject Application' }
-  );
+  const confirmed = typeof window.showConfirmModal === 'function'
+    ? await window.showConfirmModal(
+        'Reject Achievement Application?',
+        'Do you want to reject this achievement application with the stated reason?',
+        { type: 'error', danger: true, confirmText: 'Yes, Reject Application' }
+      )
+    : window.confirm('Do you want to reject this achievement application?');
   if (!confirmed) return;
 
   btn.disabled = true;
@@ -981,6 +1011,7 @@ async function submitReject() {
 
   const fd = new FormData();
   fd.set('action', 'reject');
+  fd.set('csrf_token', CSRF_TOKEN);
   fd.set('id', id);
   fd.set('notes', notes);
 
@@ -994,29 +1025,32 @@ async function submitReject() {
         showAlert(data.message || 'Achievement marked as Rejected.', 'success');
         setTimeout(() => location.reload(), 1200);
       } else {
-        window.alert(data.message || 'Failed to reject.', 'error');
+        alert(data.message || 'Failed to reject.');
       }
     })
     .catch(() => {
       btn.disabled = false;
       btn.innerHTML = '<i class="fa-solid fa-times"></i> Confirm Rejection';
-      window.alert('Network error occurred.', 'error');
+      alert('Network error occurred.');
     });
 }
 
 // -- Direct Verify Action (SSC / Admin) -----------------------
 async function verifyAch(id, action) {
   if (action === 'verify') {
-    const confirmed = await window.showConfirmModal(
-      'Verify Achievement Application?',
-      'Do you want to verify and endorse this achievement application on the official ledger?',
-      { type: 'decision', confirmText: 'Yes, Verify & Endorse' }
-    );
+    const confirmed = typeof window.showConfirmModal === 'function'
+      ? await window.showConfirmModal(
+          'Verify Achievement Application?',
+          'Do you want to verify and endorse this achievement application on the official ledger?',
+          { type: 'decision', confirmText: 'Yes, Verify & Endorse' }
+        )
+      : window.confirm('Do you want to verify and endorse this achievement application?');
     if (!confirmed) return;
   }
 
   const fd = new FormData();
   fd.set('action', action);
+  fd.set('csrf_token', CSRF_TOKEN);
   fd.set('id', id);
 
   fetch('../shared/achievement_actions.php', { method: 'POST', body: fd })

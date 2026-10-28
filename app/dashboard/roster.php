@@ -620,21 +620,7 @@ if (!empty($selected_club_code) || !empty($selected_club_id)) {
         </div>
         <?php endif; ?>
 
-        <!-- View Mode Navigation Tabs (Admin only; hidden for Adviser and SSC) -->
-        <?php if ($sess_role === 'admin'): ?>
-          <div class="roster-view-tabs" style="display:flex; gap:8px; margin-bottom:20px; border-bottom:2px solid #e2e8f0; padding-bottom:2px; flex-wrap:wrap;">
-            <a href="roster.php?view=queue<?= !empty($selected_club_code) ? '&filter_org=' . urlencode($selected_club_code) : '' ?>" class="roster-tab-btn <?= ($active_view === 'queue') ? 'active' : '' ?>" style="text-decoration:none; padding:10px 18px; font-weight:700; font-size:0.88rem; border-radius:8px 8px 0 0; display:inline-flex; align-items:center; gap:8px; <?= ($active_view === 'queue') ? 'background:#2563eb; color:#fff;' : 'background:#f8fafc; color:#64748b; border:1px solid #e2e8f0; border-bottom:none;' ?>">
-              <i class="fa-solid fa-list-check"></i> Application Review Queue
-              <?php if ($pending_count > 0): ?>
-                <span style="background:<?= ($active_view === 'queue') ? 'rgba(255,255,255,0.25)' : '#fef3c7' ?>; color:<?= ($active_view === 'queue') ? '#fff' : '#b45309' ?>; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:800;"><?= $pending_count ?></span>
-              <?php endif; ?>
-            </a>
-            <a href="roster.php?view=roster<?= !empty($selected_club_code) ? '&club_code=' . urlencode($selected_club_code) : '' ?>" class="roster-tab-btn <?= ($active_view === 'roster') ? 'active' : '' ?>" style="text-decoration:none; padding:10px 18px; font-weight:700; font-size:0.88rem; border-radius:8px 8px 0 0; display:inline-flex; align-items:center; gap:8px; <?= ($active_view === 'roster') ? 'background:#2563eb; color:#fff;' : 'background:#f8fafc; color:#64748b; border:1px solid #e2e8f0; border-bottom:none;' ?>">
-              <i class="fa-solid fa-users"></i> Member Roster Oversight
-              <span style="background:<?= ($active_view === 'roster') ? 'rgba(255,255,255,0.25)' : '#ecfdf5' ?>; color:<?= ($active_view === 'roster') ? '#fff' : '#047857' ?>; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:800;"><?= $active_count ?></span>
-            </a>
-          </div>
-        <?php endif; ?>
+
 
         <!-- Alert box -->
         <div id="rosterAlert"

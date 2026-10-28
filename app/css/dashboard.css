@@ -323,7 +323,7 @@ a.sidebar-item {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  max-width: calc(100vw - 236px);
+  max-width: calc(100% - 236px);
   width: calc(100% - 236px);
   overflow-x: hidden;
   margin-left: 236px;
@@ -331,11 +331,14 @@ a.sidebar-item {
   transition: margin-left 0.25s ease, max-width 0.25s ease, width 0.25s ease;
 }
 
-/* When sidebar collapses, reclaim the space */
+/* When sidebar collapses, reclaim the space (supports sibling combinator, body class, and :has) */
+.sidebar.collapsed ~ .main,
+.sidebar.collapsed + .main,
+body.sidebar-collapsed .main,
 body:has(.sidebar.collapsed) .main {
-  margin-left: 0;
-  max-width: 100vw;
-  width: 100%;
+  margin-left: 0 !important;
+  max-width: 100% !important;
+  width: 100% !important;
 }
 
 
@@ -1511,7 +1514,7 @@ body:has(.sidebar.collapsed) .toast {
    Breakpoints: ≤1200px large tablet, ≤900px tablet, ≤600px mobile, ≤400px tiny
 ════════════════════════════════════════════════════════════ */
 
-/* ── Large Tablet / Small Desktop (≤1200px) ────────────────── */
+/* ── Large Tablet / Small Desktop (≤1024px) ────────────────── */
 @media (max-width: 1024px) {
   .sidebar {
     width: 195px;
@@ -1519,10 +1522,17 @@ body:has(.sidebar.collapsed) .toast {
 
   .main {
     margin-left: 195px;
+    width: calc(100% - 195px);
+    max-width: calc(100% - 195px);
   }
 
+  .sidebar.collapsed ~ .main,
+  .sidebar.collapsed + .main,
+  body.sidebar-collapsed .main,
   body:has(.sidebar.collapsed) .main {
-    margin-left: 0;
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
 
   .tables-row {
@@ -1535,7 +1545,7 @@ body:has(.sidebar.collapsed) .toast {
 }
 
 /* ── Tablet (≤900px) — sidebar overlays, content full width ── */
-@media (max-width: 768px) {
+@media (max-width: 900px) {
 
   /* Sidebar off-canvas overlay */
   .sidebar {
@@ -1561,7 +1571,11 @@ body:has(.sidebar.collapsed) .toast {
   }
 
   /* Main content fills full width; prevent body from overflowing */
-  .main {
+  .main,
+  .sidebar.collapsed ~ .main,
+  .sidebar:not(.collapsed) ~ .main,
+  body.sidebar-collapsed .main,
+  body:has(.sidebar.collapsed) .main {
     margin-left: 0 !important;
     width: 100% !important;
     max-width: 100% !important;

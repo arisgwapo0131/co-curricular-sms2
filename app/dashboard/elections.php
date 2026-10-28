@@ -22,27 +22,9 @@ $student_is_org_member = ($sess_role === 'student') ? is_student_organization_me
 // ── 1. Fetch Adviser Handled Organization ──────────────────────────
 $adviser_club = null;
 if ($sess_role === 'club_adviser') {
-    $stmt_ac = $conn->prepare("
-        SELECT c.id, c.name, c.code, c.description 
-        FROM clubs c 
-        JOIN club_memberships cm ON cm.club_id = c.id 
-        WHERE cm.user_id = ? AND cm.status = 'Active' 
-        LIMIT 1
-    ");
-    if ($stmt_ac) {
-        $stmt_ac->bind_param('i', $user_id);
-        $stmt_ac->execute();
-        $res_ac = $stmt_ac->get_result();
-        if ($res_ac && $row_ac = $res_ac->fetch_assoc()) {
-            $adviser_club = $row_ac;
-        }
-        $stmt_ac->close();
-    }
-    if (!$adviser_club) {
-        $r_c = $conn->query("SELECT id, name, code, description FROM clubs WHERE status='Active' LIMIT 1");
-        if ($r_c && $row_c = $r_c->fetch_assoc()) {
-            $adviser_club = $row_c;
-        }
+    $adv_clubs = get_user_assigned_clubs($conn, $user_id, $sess_role);
+    if (!empty($adv_clubs)) {
+        $adviser_club = $adv_clubs[0];
     }
 }
 
@@ -54,10 +36,14 @@ $where_sql = "";
 $params = [];
 $types = "";
 
-if ($sess_role === 'club_adviser' && $adviser_club) {
-    $where_sql = "WHERE e.club_id = ?";
-    $params = [$adviser_club['id']];
-    $types = "i";
+if ($sess_role === 'club_adviser') {
+    if ($adviser_club) {
+        $where_sql = "WHERE e.club_id = ?";
+        $params = [$adviser_club['id']];
+        $types = "i";
+    } else {
+        $where_sql = "WHERE 1=0";
+    }
 } elseif ($sess_role === 'student') {
     $where_sql = "WHERE (e.club_id IN (SELECT club_id FROM club_memberships WHERE user_id = ? AND status = 'Active') OR e.scope = 'Campus' OR e.club_id = 0)";
     $params = [$user_id];
@@ -220,10 +206,14 @@ $past_where = "WHERE e.status = 'closed'";
 $past_params = [];
 $past_types = "";
 
-if ($sess_role === 'club_adviser' && $adviser_club) {
-    $past_where .= " AND e.club_id = ?";
-    $past_params = [$adviser_club['id']];
-    $past_types = "i";
+if ($sess_role === 'club_adviser') {
+    if ($adviser_club) {
+        $past_where .= " AND e.club_id = ?";
+        $past_params = [$adviser_club['id']];
+        $past_types = "i";
+    } else {
+        $past_where .= " AND 1=0";
+    }
 } elseif ($sess_role === 'student') {
     $past_where .= " AND e.club_id IN (SELECT club_id FROM club_memberships WHERE user_id = ? AND status = 'Active')";
     $past_params = [$user_id];

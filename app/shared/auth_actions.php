@@ -132,6 +132,9 @@ try {
             OR email = ? 
          LIMIT 1'
         );
+        if (!$stmt) {
+            respond(false, 'Database authentication error: ' . ($conn->error ?: 'Unable to prepare query.'));
+        }
         $stmt->bind_param('ss', $lookupUser, $username);
         $stmt->execute();
         $user = $stmt->get_result()->fetch_assoc();
@@ -290,6 +293,9 @@ try {
 
         // Verification succeeded! Fetch complete user record
         $stmt = $conn->prepare("SELECT id, username, email, first_name, last_name, role, profile_pic FROM users WHERE id = ? LIMIT 1");
+        if (!$stmt) {
+            respond(false, 'Database verification error: ' . ($conn->error ?: 'Unable to prepare query.'));
+        }
         $stmt->bind_param('i', $userId);
         $stmt->execute();
         $user = $stmt->get_result()->fetch_assoc();
@@ -487,10 +493,14 @@ try {
 
         // Fetch and remove previous avatar if exists
         $stmt = $conn->prepare('SELECT profile_pic FROM users WHERE id = ? LIMIT 1');
-        $stmt->bind_param('i', $userId);
-        $stmt->execute();
-        $oldPic = $stmt->get_result()->fetch_assoc()['profile_pic'] ?? null;
-        $stmt->close();
+        if ($stmt) {
+            $stmt->bind_param('i', $userId);
+            $stmt->execute();
+            $oldPic = $stmt->get_result()->fetch_assoc()['profile_pic'] ?? null;
+            $stmt->close();
+        } else {
+            $oldPic = null;
+        }
 
         if ($oldPic && $oldPic !== $filename) {
             $oldPath = $uploadDir . basename($oldPic);
@@ -512,6 +522,9 @@ try {
 
         // 2. Update master users table
         $stmt = $conn->prepare('UPDATE users SET profile_pic = ? WHERE id = ?');
+        if (!$stmt) {
+            respond(false, 'Database error updating profile photo: ' . ($conn->error ?: 'Prepare failed'));
+        }
         $stmt->bind_param('si', $filename, $userId);
         if ($stmt->execute()) {
             $stmt->close();
@@ -549,10 +562,14 @@ try {
         $userId = (int)$_SESSION['user_id'];
 
         $stmt = $conn->prepare('SELECT profile_pic FROM users WHERE id = ? LIMIT 1');
-        $stmt->bind_param('i', $userId);
-        $stmt->execute();
-        $oldPic = $stmt->get_result()->fetch_assoc()['profile_pic'] ?? null;
-        $stmt->close();
+        if ($stmt) {
+            $stmt->bind_param('i', $userId);
+            $stmt->execute();
+            $oldPic = $stmt->get_result()->fetch_assoc()['profile_pic'] ?? null;
+            $stmt->close();
+        } else {
+            $oldPic = null;
+        }
 
         if ($oldPic) {
             $oldPath = __DIR__ . '/../uploads/avatars/' . basename($oldPic);
@@ -565,6 +582,9 @@ try {
         $conn->query("UPDATE profile_photos SET is_current = 0 WHERE user_id = $userId");
 
         $stmt = $conn->prepare('UPDATE users SET profile_pic = NULL WHERE id = ?');
+        if (!$stmt) {
+            respond(false, 'Database error removing profile picture: ' . ($conn->error ?: 'Prepare failed'));
+        }
         $stmt->bind_param('i', $userId);
         if ($stmt->execute()) {
             $stmt->close();
@@ -613,6 +633,9 @@ try {
         $stmt = $conn->prepare(
             'SELECT id FROM users WHERE (username = ? OR email = ?) AND id != ? LIMIT 1'
         );
+        if (!$stmt) {
+            respond(false, 'Database error validating profile: ' . ($conn->error ?: 'Prepare failed'));
+        }
         $stmt->bind_param('ssi', $username, $email, $userId);
         $stmt->execute();
         if ($stmt->get_result()->num_rows > 0)
@@ -622,6 +645,9 @@ try {
         $stmt = $conn->prepare(
             'UPDATE users SET first_name=?, last_name=?, email=?, username=? WHERE id=?'
         );
+        if (!$stmt) {
+            respond(false, 'Database error updating profile: ' . ($conn->error ?: 'Prepare failed'));
+        }
         $stmt->bind_param('ssssi', $first_name, $last_name, $email, $username, $userId);
         if ($stmt->execute()) {
             $_SESSION['first_name'] = $first_name;
@@ -648,6 +674,9 @@ try {
 
         $userId = $_SESSION['user_id'];
         $stmt = $conn->prepare('SELECT password_hash FROM users WHERE id = ? LIMIT 1');
+        if (!$stmt) {
+            respond(false, 'Database error verifying password: ' . ($conn->error ?: 'Prepare failed'));
+        }
         $stmt->bind_param('i', $userId);
         $stmt->execute();
         $row = $stmt->get_result()->fetch_assoc();
@@ -658,6 +687,9 @@ try {
 
         $newHash = password_hash($new, PASSWORD_DEFAULT);
         $stmt = $conn->prepare('UPDATE users SET password_hash = ? WHERE id = ?');
+        if (!$stmt) {
+            respond(false, 'Database error updating password: ' . ($conn->error ?: 'Prepare failed'));
+        }
         $stmt->bind_param('si', $newHash, $userId);
         if ($stmt->execute())
             respond(true, 'Password changed successfully.');
@@ -692,6 +724,9 @@ try {
         requireSession();
         $userId = $_SESSION['user_id'];
         $stmt = $conn->prepare('DELETE FROM users WHERE id = ?');
+        if (!$stmt) {
+            respond(false, 'Database error deleting account: ' . ($conn->error ?: 'Prepare failed'));
+        }
         $stmt->bind_param('i', $userId);
         if ($stmt->execute()) {
             session_destroy();

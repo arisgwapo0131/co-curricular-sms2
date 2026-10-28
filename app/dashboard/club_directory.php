@@ -1924,7 +1924,7 @@ if ($is_gov_role) {
                   <option value="pending charter">Pending Charter</option>
                   <option value="suspended">Suspended</option>
                 </select>
-                <?php if ($sess_role === 'ssc'): ?>
+                <?php if (in_array($sess_role, ['ssc', 'admin'])): ?>
                   <button type="button" class="card-btn" style="background:#16a34a; color:#fff; font-weight:700; padding:7px 14px; border-radius:8px; white-space:nowrap; display:inline-flex; align-items:center; gap:6px; font-size:0.82rem; border:none; cursor:pointer;" onclick="openCharterModal()">
                     <i class="fa-solid fa-plus-circle"></i> Create Organization
                   </button>
@@ -3101,16 +3101,16 @@ if ($is_gov_role) {
     }
   </script>
 
-  <?php if ($sess_role === 'ssc'): ?>
-  <!-- CHARTER ORGANIZATION MODAL (SSC Propose Only — Awaits Admin Approval) -->
+  <?php if (in_array($sess_role, ['ssc', 'admin'])): ?>
+  <!-- CHARTER ORGANIZATION MODAL (SSC Propose / Admin Direct Create) -->
   <div class="org-profile-overlay" id="charterModalOverlay">
     <div class="org-profile-modal" style="max-width:560px;">
       <div class="opm-hero" style="background:linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); color:#fff; display:flex; justify-content:space-between; align-items:center; padding:18px 24px; border-radius:20px 20px 0 0;">
         <div>
           <h3 style="margin:0; font-size:1.15rem; color:#fff; font-weight:800; display:flex; align-items:center; gap:8px;">
-            <i class="fa-solid fa-plus-circle" style="color:#facc15;"></i> Create Organization Proposal
+            <i class="fa-solid fa-plus-circle" style="color:#facc15;"></i> <?= $sess_role === 'admin' ? 'Create New Organization' : 'Create Organization Proposal' ?>
           </h3>
-          <span style="font-size:0.75rem; color:#bfdbfe; font-weight:600;">Supreme Student Council (SSC) Charter Endorsement</span>
+          <span style="font-size:0.75rem; color:#bfdbfe; font-weight:600;"><?= $sess_role === 'admin' ? 'System Administrator Organization Master Creation' : 'Supreme Student Council (SSC) Charter Endorsement' ?></span>
         </div>
         <button type="button" style="background:none; border:none; color:#fff; font-size:1.25rem; cursor:pointer;" onclick="closeCharterModal()"><i class="fa-solid fa-xmark"></i></button>
       </div>
@@ -3121,7 +3121,11 @@ if ($is_gov_role) {
           <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:10px 14px; margin-bottom:16px; display:flex; align-items:flex-start; gap:10px;">
             <i class="fa-solid fa-circle-info" style="color:#2563eb; font-size:1rem; margin-top:2px;"></i>
             <div style="font-size:0.78rem; color:#1e40af; line-height:1.4;">
-              <strong>Charter Approval Workflow:</strong> Organizations proposed by the SSC are saved with <em>Pending Charter</em> status and must receive final accreditation clearance from the <strong>System Administrator</strong> before activation.
+              <?php if ($sess_role === 'admin'): ?>
+                <strong>Administrator Direct Creation:</strong> As System Administrator, newly created organizations are directly chartered and accredited with <em>Active</em> status.
+              <?php else: ?>
+                <strong>Charter Approval Workflow:</strong> Organizations proposed by the SSC are saved with <em>Pending Charter</em> status and must receive final accreditation clearance from the <strong>System Administrator</strong> before activation.
+              <?php endif; ?>
             </div>
           </div>
 
@@ -3186,7 +3190,7 @@ if ($is_gov_role) {
         </div>
         <div style="padding:14px 26px; border-top:1px solid #f1f5f9; background:#f8fafc; display:flex; justify-content:flex-end; gap:10px; border-radius:0 0 20px 20px;">
           <button type="button" class="card-btn" style="background:#e2e8f0; color:#475569;" onclick="closeCharterModal()">Cancel</button>
-          <button type="submit" id="btnSubmitCharter" class="card-btn" style="background:#16a34a; color:#fff; font-weight:700;"><i class="fa-solid fa-paper-plane"></i> Submit for Admin Approval</button>
+          <button type="submit" id="btnSubmitCharter" class="card-btn" style="background:#16a34a; color:#fff; font-weight:700;"><i class="fa-solid fa-<?= $sess_role === 'admin' ? 'check' : 'paper-plane' ?>"></i> <?= $sess_role === 'admin' ? 'Create Organization' : 'Submit for Admin Approval' ?></button>
         </div>
       </form>
     </div>

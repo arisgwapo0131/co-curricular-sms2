@@ -97,10 +97,11 @@ switch ($action) {
         cRespond(true, "Faculty adviser assigned successfully!");
     }
 
-    // ── CHARTER NEW ORGANIZATION (SSC Only — Pending Admin Approval) ─────
+    // ── CHARTER NEW ORGANIZATION (SSC Propose / Admin Direct Create) ─────
     case 'create_club': {
-        if ($user_role !== 'ssc') {
-            cRespond(false, 'Only Supreme Student Council (SSC) Officers can submit new organization charter proposals.');
+        $is_admin = in_array($user_role, ['admin', 'super_admin']);
+        if (!$is_admin && $user_role !== 'ssc') {
+            cRespond(false, 'Only Supreme Student Council (SSC) Officers and System Administrators can create organizations.');
         }
 
         $code         = strtoupper(trim($_POST['code'] ?? ''));
@@ -111,6 +112,10 @@ switch ($action) {
         $description  = trim($_POST['description'] ?? '');
         $adviser_user_id = !empty($_POST['adviser_user_id']) ? (int)$_POST['adviser_user_id'] : null;
         $adviser_name = trim($_POST['adviser_name'] ?? '');
+        $status       = $is_admin ? trim($_POST['status'] ?? 'Active') : 'Pending Charter';
+        if (!in_array($status, ['Active', 'Pending Charter', 'Suspended'])) {
+            $status = $is_admin ? 'Active' : 'Pending Charter';
+        }
 
         if ($adviser_user_id && empty($adviser_name)) {
             $u_stmt = $conn->prepare("SELECT CONCAT(first_name, ' ', last_name) AS full_name FROM users WHERE id = ?");
@@ -131,7 +136,7 @@ switch ($action) {
 
         if (empty($sub_category)) {
             if ($category === 'Cultural' || $category === 'Sports') {
-                $sub_category = 'Talent Center';
+                $sub_category = ($category === 'Sports') ? 'Sports Club' : 'Talent Center';
             } elseif ($category === 'Advocacy') {
                 $sub_category = 'Campus-Wide Independent Bodies';
             } elseif ($category === 'Religious') {
@@ -147,7 +152,7 @@ switch ($action) {
         }
 
         // Check if code exists
-        $chk = $conn->prepare("SELECT id FROM clubs WHERE code = ? LIMIT 1");
+        $chk = $conn->prepare("SELECT id FROM clubs WHERE code = ? AND deleted_at IS NULL LIMIT 1");
         $chk->bind_param('s', $code);
         $chk->execute();
         if ($chk->get_result()->num_rows > 0) {
@@ -155,13 +160,13 @@ switch ($action) {
         }
         $chk->close();
 
-        // Organizations created by SSC require Admin approval, so initial status is 'Pending Charter'
+        // Organizations created by SSC require Admin approval ('Pending Charter'), while Admin creates as Active
         if ($adviser_user_id) {
-            $stmt = $conn->prepare("INSERT INTO clubs (code, name, category, sub_category, program, description, adviser_user_id, adviser_name, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending Charter')");
-            $stmt->bind_param('ssssssis', $code, $name, $category, $sub_category, $program, $description, $adviser_user_id, $adviser_name);
+            $stmt = $conn->prepare("INSERT INTO clubs (code, name, category, sub_category, program, description, adviser_user_id, adviser_name, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param('ssssssiss', $code, $name, $category, $sub_category, $program, $description, $adviser_user_id, $adviser_name, $status);
         } else {
-            $stmt = $conn->prepare("INSERT INTO clubs (code, name, category, sub_category, program, description, adviser_name, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending Charter')");
-            $stmt->bind_param('sssssss', $code, $name, $category, $sub_category, $program, $description, $adviser_name);
+            $stmt = $conn->prepare("INSERT INTO clubs (code, name, category, sub_category, program, description, adviser_name, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param('ssssssss', $code, $name, $category, $sub_category, $program, $description, $adviser_name, $status);
         }
 
         if (!$stmt->execute()) {
@@ -170,17 +175,50 @@ switch ($action) {
         $new_cid = $stmt->insert_id;
         $stmt->close();
 
-        log_audit($conn, $user_id, 'club_propose', 'clubs', $new_cid, "SSC submitted organization charter proposal for Admin approval: $name ($code)");
-
-        // Notify System Administrators of pending charter proposal
-        $adm_res = $conn->query("SELECT id FROM users WHERE role = 'admin'");
-        if ($adm_res) {
-            while ($adm = $adm_res->fetch_assoc()) {
-                push_notification($conn, (int)$adm['id'], 'New Organization Charter Proposal', "The Supreme Student Council (SSC) submitted a charter proposal for \"$name\" ($code) awaiting your review and approval.", 'info', 'clubs', $new_cid, 'club_directory.php', 'High');
-            }
+        // Auto-initialize standard chat channels
+        $gen_name  = "$code • General Club Chat";
+        $gen_desc  = "Official group chat for $name faculty adviser, student officers, and all active members.";
+        $exec_name = "$code • Executive Board";
+        $exec_desc = "Leadership coordination channel for $name faculty adviser and student officers.";
+        $cg_stmt = $conn->prepare("
+            INSERT INTO chat_groups (club_id, group_type, name, description, icon)
+            VALUES (?, 'club_general', ?, ?, 'fa-comments'),
+                   (?, 'club_executive', ?, ?, 'fa-shield-halved')
+        ");
+        if ($cg_stmt) {
+            $cg_stmt->bind_param('isssis', $new_cid, $gen_name, $gen_desc, $new_cid, $exec_name, $exec_desc);
+            $cg_stmt->execute();
+            $cg_stmt->close();
         }
 
-        cRespond(true, "Organization charter proposal for \"$name\" ($code) submitted successfully! It is now pending System Administrator review and approval.", ['club_id' => $new_cid]);
+        if ($is_admin) {
+            log_audit($conn, $user_id, 'admin_create_club', 'clubs', $new_cid, "Admin created organization: $name ($code)");
+            if ($adviser_user_id && $status === 'Active') {
+                $cm_ins = $conn->prepare("
+                    INSERT INTO club_memberships (club_id, user_id, role, status, adviser_review, ssc_review)
+                    VALUES (?, ?, 'Adviser', 'Active', 'Approved', 'Approved')
+                    ON DUPLICATE KEY UPDATE role = 'Adviser', status = 'Active'
+                ");
+                if ($cm_ins) {
+                    $cm_ins->bind_param('ii', $new_cid, $adviser_user_id);
+                    $cm_ins->execute();
+                    $cm_ins->close();
+                }
+            }
+            cRespond(true, "Organization \"$name\" ($code) created successfully.", ['club_id' => $new_cid]);
+        } else {
+            log_audit($conn, $user_id, 'club_propose', 'clubs', $new_cid, "SSC submitted organization charter proposal for Admin approval: $name ($code)");
+
+            // Notify System Administrators of pending charter proposal
+            $adm_res = $conn->query("SELECT id FROM users WHERE role = 'admin'");
+            if ($adm_res) {
+                while ($adm = $adm_res->fetch_assoc()) {
+                    push_notification($conn, (int)$adm['id'], 'New Organization Charter Proposal', "The Supreme Student Council (SSC) submitted a charter proposal for \"$name\" ($code) awaiting your review and approval.", 'info', 'clubs', $new_cid, 'club_directory.php', 'High');
+                }
+            }
+
+            cRespond(true, "Organization charter proposal for \"$name\" ($code) submitted successfully! It is now pending System Administrator review and approval.", ['club_id' => $new_cid]);
+        }
     }
 
     // ── APPROVE ORGANIZATION CHARTER (Admin only) ─────────────

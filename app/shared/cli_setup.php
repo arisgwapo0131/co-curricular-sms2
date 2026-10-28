@@ -54,34 +54,42 @@ echo "🔍 Target Database Host: {$host}:{$port}\n";
 echo "🔍 Target Database Name: {$db}\n";
 echo "🔍 Connecting user: {$user}\n";
 
-// 2. Candidate host list (prioritize configured host, then Railway private DNS)
-$candidate_hosts = [$host];
-if ($is_railway || !in_array($host, ['mysql.railway.internal', 'mariadb.railway.internal'], true)) {
-    $candidate_hosts[] = 'mysql.railway.internal';
-    $candidate_hosts[] = 'mariadb.railway.internal';
-    $candidate_hosts[] = 'db.railway.internal';
-    $candidate_hosts[] = 'database.railway.internal';
-}
-$candidate_hosts = array_unique(array_filter($candidate_hosts));
-
-// 3. Retry loop waiting for MySQL availability
-$max_retries = 30;
-$retry_count = 0;
+// 2. Reuse active connection from db.php if already established
 $connected = false;
 $mysqli = null;
 
-while ($retry_count < $max_retries) {
-    foreach ($candidate_hosts as $cand_h) {
-        $mysqli = @new mysqli($cand_h, $user, $pass, '', $port);
-        if (!$mysqli->connect_error) {
-            $connected = true;
-            $host = $cand_h;
-            break 2;
-        }
+if (!empty($conn) && $conn instanceof mysqli && !$conn->connect_error) {
+    $mysqli = $conn;
+    $connected = true;
+    echo "✅ Reusing active database connection ({$host}:{$port}).\n";
+} else {
+    // Candidate host list (prioritize configured host, local dev, and Railway private DNS)
+    $candidate_hosts = [$host, '127.0.0.1', 'localhost'];
+    if ($is_railway || !in_array($host, ['mysql.railway.internal', 'mariadb.railway.internal'], true)) {
+        $candidate_hosts[] = 'mysql.railway.internal';
+        $candidate_hosts[] = 'mariadb.railway.internal';
+        $candidate_hosts[] = 'db.railway.internal';
+        $candidate_hosts[] = 'database.railway.internal';
     }
-    $retry_count++;
-    echo "⏳ Waiting for MySQL to become ready... (attempt {$retry_count}/{$max_retries})\n";
-    sleep(2);
+    $candidate_hosts = array_unique(array_filter($candidate_hosts));
+
+    // 3. Retry loop waiting for MySQL availability
+    $max_retries = 30;
+    $retry_count = 0;
+
+    while ($retry_count < $max_retries) {
+        foreach ($candidate_hosts as $cand_h) {
+            $mysqli = @new mysqli($cand_h, $user, $pass, '', $port);
+            if (!$mysqli->connect_error) {
+                $connected = true;
+                $host = $cand_h;
+                break 2;
+            }
+        }
+        $retry_count++;
+        echo "⏳ Waiting for MySQL to become ready... (attempt {$retry_count}/{$max_retries})\n";
+        sleep(2);
+    }
 }
 
 if (!$connected || !$mysqli) {

@@ -46,6 +46,18 @@ $role_labels = [
     'club_adviser' => 'Faculty Club Adviser',
     'student'      => 'General Student',
 ];
+
+$academic_programs = [];
+$acad_res = $conn->query("SELECT id, code, name FROM academic_programs WHERE status = 'Active' ORDER BY name");
+if ($acad_res) {
+    $academic_programs = $acad_res->fetch_all(MYSQLI_ASSOC);
+}
+
+$active_clubs = [];
+$club_res = $conn->query("SELECT id, code, name FROM clubs WHERE status = 'Active' ORDER BY name");
+if ($club_res) {
+    $active_clubs = $club_res->fetch_all(MYSQLI_ASSOC);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -699,10 +711,12 @@ require_once __DIR__ . '/../shared/sidebar.php';
   <div class="modal-card">
     <div class="modal-header">
       <h3><i class="fa-solid fa-user-plus" style="color:#2563eb;"></i> Add New System User</h3>
-      <button style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:#64748b;" onclick="closeModal('createUserModal')"><i class="fa-solid fa-xmark"></i></button>
+      <button type="button" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:#64748b;" onclick="closeModal('createUserModal')" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
     </div>
-    <form id="createUserForm" onsubmit="handleCreateUser(event)">
+    <form id="createUserForm" onsubmit="handleCreateUser(event)" autocomplete="off">
       <div class="modal-body">
+        <div id="createUserAlert" style="display:none; padding:12px 14px; border-radius:10px; margin-bottom:14px; font-size:0.84rem; font-weight:600; line-height:1.4;"></div>
+
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
           <div class="form-group-admin">
             <label>First Name <span style="color:#ef4444;">*</span></label>
@@ -713,18 +727,22 @@ require_once __DIR__ . '/../shared/sidebar.php';
             <input type="text" name="last_name" required placeholder="e.g. Doe"/>
           </div>
         </div>
-        <div class="form-group-admin">
-          <label>Username <span style="color:#ef4444;">*</span></label>
-          <input type="text" name="username" required placeholder="e.g. john.doe"/>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div class="form-group-admin">
+            <label>Username <span style="color:#ef4444;">*</span></label>
+            <input type="text" name="username" required placeholder="e.g. john.doe" style="text-transform:lowercase;"/>
+          </div>
+          <div class="form-group-admin">
+            <label>Email Address <span style="color:#ef4444;">*</span></label>
+            <input type="email" name="email" required placeholder="e.g. jdoe@bcp.edu.ph"/>
+          </div>
         </div>
-        <div class="form-group-admin">
-          <label>Email Address <span style="color:#ef4444;">*</span></label>
-          <input type="email" name="email" required placeholder="e.g. jdoe@bcp.edu.ph"/>
-        </div>
+
         <div class="form-group-admin">
           <label>System Role <span style="color:#ef4444;">*</span></label>
-          <select name="role" id="newUserRoleSelect" onchange="toggleStudentFields(this.value)">
-            <option value="student">General Student</option>
+          <select name="role" id="newUserRoleSelect" onchange="handleNewUserRoleChange(this.value)">
+            <option value="student" selected>General Student</option>
             <option value="club_adviser">Faculty Club Adviser</option>
             <option value="ssc">Supreme Student Council (SSC)</option>
             <option value="staff">Office of Student Affairs (Staff)</option>
@@ -732,24 +750,83 @@ require_once __DIR__ . '/../shared/sidebar.php';
             <option value="super_admin">Super Administrator</option>
           </select>
         </div>
+
+        <!-- Role Guidance Note -->
+        <div id="roleGuidanceNote" style="display:none; padding:10px 14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; margin-bottom:14px; font-size:0.78rem; color:#475569;">
+          <i class="fa-solid fa-circle-info" style="color:#2563eb; margin-right:4px;"></i>
+          <span id="roleGuidanceText"></span>
+        </div>
+
+        <!-- Student-Specific Fields -->
         <div id="studentSpecificFields">
-          <div class="form-group-admin">
-            <label>Student ID Number</label>
-            <input type="text" name="student_number" placeholder="e.g. 2026-10450"/>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div class="form-group-admin">
+              <label>Student ID Number <span style="font-weight:normal; color:#64748b;">(Optional)</span></label>
+              <input type="text" name="student_number" placeholder="e.g. 2026-10450"/>
+            </div>
+            <div class="form-group-admin">
+              <label>Year Level</label>
+              <select name="year_level">
+                <option value="1st Year">1st Year</option>
+                <option value="2nd Year">2nd Year</option>
+                <option value="3rd Year">3rd Year</option>
+                <option value="4th Year">4th Year</option>
+              </select>
+            </div>
           </div>
-          <div class="form-group-admin">
-            <label>Academic Program / Course</label>
-            <input type="text" name="course" placeholder="e.g. Bachelor of Science in Information Technology"/>
+          <div style="display:grid; grid-template-columns:2fr 1fr; gap:12px;">
+            <div class="form-group-admin">
+              <label>Academic Program / Course</label>
+              <select name="course" id="createStudentCourseSelect">
+                <option value="">-- Select Academic Program --</option>
+                <?php foreach ($academic_programs as $ap): ?>
+                  <option value="<?= htmlspecialchars($ap['name']) ?>"><?= htmlspecialchars($ap['code'] . ' — ' . $ap['name']) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="form-group-admin">
+              <label>Section</label>
+              <input type="text" name="section" placeholder="e.g. 1A" value="1A"/>
+            </div>
           </div>
         </div>
+
+        <!-- Adviser-Specific Fields -->
+        <div id="adviserSpecificFields" style="display:none;">
+          <div class="form-group-admin">
+            <label>Assigned Club / Organization <span style="font-weight:normal; color:#64748b;">(Optional)</span></label>
+            <select name="club_id" id="createAdviserClubSelect">
+              <option value="">-- Unassigned (or Select Organization) --</option>
+              <?php foreach ($active_clubs as $cl): ?>
+                <option value="<?= $cl['id'] ?>"><?= htmlspecialchars($cl['name'] . ' (' . $cl['code'] . ')') ?></option>
+              <?php endforeach; ?>
+            </select>
+            <span style="font-size:0.72rem; color:#64748b; margin-top:4px; display:block;">Assigning an organization will set this user as the official faculty adviser.</span>
+          </div>
+        </div>
+
+        <!-- Initial Password with generator & toggle -->
         <div class="form-group-admin">
-          <label>Initial Password</label>
-          <input type="password" name="password" placeholder="Enter initial password (min 8 chars)" required/>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label style="margin:0;">Initial Password <span style="color:#ef4444;">*</span></label>
+            <button type="button" onclick="generateNewUserPassword()" style="background:none; border:none; color:#2563eb; font-size:0.75rem; font-weight:700; cursor:pointer; padding:0; display:flex; align-items:center; gap:4px;">
+              <i class="fa-solid fa-key"></i> Auto-Generate
+            </button>
+          </div>
+          <div style="position:relative; display:flex; align-items:center;">
+            <input type="password" name="password" id="createUserPasswordInput" placeholder="Enter initial password (min 8 chars)" required minlength="8" style="padding-right:40px; width:100%;"/>
+            <button type="button" onclick="togglePasswordVisibility('createUserPasswordInput', this)" style="position:absolute; right:10px; background:none; border:none; color:#64748b; cursor:pointer; font-size:0.9rem;" title="Show/Hide Password">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+          <span style="font-size:0.72rem; color:#64748b; margin-top:4px; display:block;">Minimum 8 characters. User can update this anytime via Account Settings.</span>
         </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="card-btn" style="background:#f1f5f9; color:#475569;" onclick="closeModal('createUserModal')">Cancel</button>
-        <button type="submit" class="card-btn" style="background:#16a34a; color:#fff; font-weight:700;"><i class="fa-solid fa-check"></i> Create Account</button>
+        <button type="submit" id="createUserSubmitBtn" class="card-btn" style="background:#16a34a; color:#fff; font-weight:700;">
+          <i class="fa-solid fa-check"></i> Create Account
+        </button>
       </div>
     </form>
   </div>
@@ -1015,12 +1092,91 @@ function showAlert(msg, type) {
   setTimeout(() => { el.style.display = 'none'; }, 4000);
 }
 
-function openModal(id) { document.getElementById(id)?.classList.add('active'); }
-function closeModal(id) { document.getElementById(id)?.classList.remove('active'); }
+function openModal(id) { 
+  const el = document.getElementById(id);
+  if (el) {
+    el.style.display = 'flex';
+    el.classList.add('active');
+  }
+}
+
+function closeModal(id) { 
+  const el = document.getElementById(id);
+  if (el) {
+    el.classList.remove('active');
+    el.style.display = 'none';
+  }
+}
+
+// Backdrop click closes modal
+document.addEventListener('click', function(e) {
+  if (e.target && e.target.classList && e.target.classList.contains('modal-overlay')) {
+    closeModal(e.target.id);
+  }
+});
+
+function handleNewUserRoleChange(role) {
+  const stWrap = document.getElementById('studentSpecificFields');
+  const advWrap = document.getElementById('adviserSpecificFields');
+  const noteWrap = document.getElementById('roleGuidanceNote');
+  const noteText = document.getElementById('roleGuidanceText');
+
+  if (stWrap) stWrap.style.display = (role === 'student') ? 'block' : 'none';
+  if (advWrap) advWrap.style.display = (role === 'club_adviser') ? 'block' : 'none';
+
+  if (noteWrap && noteText) {
+    if (role === 'ssc') {
+      noteText.textContent = 'Supreme Student Council (SSC) officer account with review, endorsement, and governance permissions.';
+      noteWrap.style.display = 'block';
+    } else if (role === 'staff') {
+      noteText.textContent = 'Office of Student Affairs (OSA) staff account with oversight and validation permissions.';
+      noteWrap.style.display = 'block';
+    } else if (role === 'admin') {
+      noteText.textContent = 'System Administrator account with full operational and user management permissions.';
+      noteWrap.style.display = 'block';
+    } else if (role === 'super_admin') {
+      noteText.textContent = 'Super Administrator account with root institutional access and security controls.';
+      noteWrap.style.display = 'block';
+    } else {
+      noteWrap.style.display = 'none';
+    }
+  }
+}
+
+function generateNewUserPassword() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+  let pw = 'Bcp2026!';
+  for (let i = 0; i < 4; i++) {
+    pw += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  const input = document.getElementById('createUserPasswordInput');
+  if (input) {
+    input.value = pw;
+    input.type = 'text';
+    const alertBox = document.getElementById('createUserAlert');
+    if (alertBox) {
+      alertBox.style.display = 'block';
+      alertBox.style.background = '#eff6ff';
+      alertBox.style.color = '#1d4ed8';
+      alertBox.style.border = '1px solid #bfdbfe';
+      alertBox.innerHTML = '<i class="fa-solid fa-key" style="margin-right:6px;"></i> Generated password: <strong>' + pw + '</strong> (Password is currently visible)';
+    }
+  }
+}
+
+function togglePasswordVisibility(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const isPw = input.type === 'password';
+  input.type = isPw ? 'text' : 'password';
+  const icon = btn.querySelector('i');
+  if (icon) {
+    icon.className = isPw ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+  }
+}
 
 function toggleStudentFields(role) {
-  const wrap = document.getElementById('studentSpecificFields');
-  if (wrap) wrap.style.display = role === 'student' ? 'block' : 'none';
+  handleNewUserRoleChange(role);
 }
 
 function filterUserTable() {
@@ -1078,29 +1234,97 @@ if (document.readyState === 'loading') {
 }
 
 function openCreateUserModal() {
-  document.getElementById('createUserForm')?.reset();
-  toggleStudentFields('student');
+  const form = document.getElementById('createUserForm');
+  if (form) form.reset();
+
+  const alertBox = document.getElementById('createUserAlert');
+  if (alertBox) {
+    alertBox.style.display = 'none';
+    alertBox.innerHTML = '';
+  }
+
+  const submitBtn = document.getElementById('createUserSubmitBtn');
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> Create Account';
+  }
+
+  const pwInput = document.getElementById('createUserPasswordInput');
+  if (pwInput) pwInput.type = 'password';
+
+  const roleSelect = document.getElementById('newUserRoleSelect');
+  if (roleSelect) roleSelect.value = 'student';
+  handleNewUserRoleChange('student');
+
   openModal('createUserModal');
 }
 
 function handleCreateUser(e) {
   e.preventDefault();
-  const fd = new FormData(e.target);
+  const form = e.target;
+  const submitBtn = document.getElementById('createUserSubmitBtn');
+  const alertBox = document.getElementById('createUserAlert');
+
+  if (alertBox) {
+    alertBox.style.display = 'none';
+    alertBox.innerHTML = '';
+  }
+
+  const fd = new FormData(form);
   fd.append('action', 'create_user');
   if (CSRF_TOKEN) fd.append('csrf_token', CSRF_TOKEN);
+
+  const origBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Creating Account...';
+  }
 
   fetch('../shared/admin_actions.php', { method: 'POST', body: fd })
     .then(r => r.json())
     .then(res => {
       if (res.success) {
+        if (alertBox) {
+          alertBox.style.display = 'block';
+          alertBox.style.background = '#dcfce7';
+          alertBox.style.color = '#166534';
+          alertBox.style.border = '1px solid #bbf7d0';
+          alertBox.innerHTML = '<i class="fa-solid fa-circle-check" style="margin-right:6px;"></i> ' + res.message;
+        }
         showAlert(res.message, 'success');
-        closeModal('createUserModal');
-        setTimeout(() => location.reload(), 1200);
+        setTimeout(() => {
+          closeModal('createUserModal');
+          location.reload();
+        }, 1000);
       } else {
-        showAlert(res.message, 'error');
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = origBtnHtml;
+        }
+        if (alertBox) {
+          alertBox.style.display = 'block';
+          alertBox.style.background = '#fef2f2';
+          alertBox.style.color = '#991b1b';
+          alertBox.style.border = '1px solid #fecaca';
+          alertBox.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="margin-right:6px;"></i> ' + (res.message || 'Failed to create user account.');
+        }
+        showAlert(res.message || 'Failed to create user account.', 'error');
       }
     })
-    .catch(() => showAlert('Network error.', 'error'));
+    .catch(err => {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = origBtnHtml;
+      }
+      if (alertBox) {
+        alertBox.style.display = 'block';
+        alertBox.style.background = '#fef2f2';
+        alertBox.style.color = '#991b1b';
+        alertBox.style.border = '1px solid #fecaca';
+        alertBox.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="margin-right:6px;"></i> Communication error while connecting to server. Please try again.';
+      }
+      showAlert('Network error while connecting to server.', 'error');
+    });
 }
 
 function openEditUserModal(u) {

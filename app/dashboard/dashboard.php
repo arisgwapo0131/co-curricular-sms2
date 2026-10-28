@@ -37,9 +37,9 @@ $role_title = $role_labels[$sess_role] ?? 'User';
 // Student Profile Details
 $student_info = null;
 if ($sess_role === 'student') {
-    $stmt = $conn->prepare("SELECT student_number, course, year_level, section FROM students WHERE first_name = ? AND last_name = ? LIMIT 1");
+    $stmt = $conn->prepare("SELECT student_number, course, year_level, section FROM students WHERE user_id = ? OR (first_name = ? AND last_name = ?) LIMIT 1");
     if ($stmt) {
-        $stmt->bind_param('ss', $_SESSION['first_name'], $_SESSION['last_name']);
+        $stmt->bind_param('iss', $user_id, $_SESSION['first_name'], $_SESSION['last_name']);
         $stmt->execute();
         $res = $stmt->get_result();
         if ($res && $res->num_rows > 0) {

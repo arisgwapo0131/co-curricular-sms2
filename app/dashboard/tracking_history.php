@@ -10,10 +10,6 @@ require_auth();
 $sess_first   = htmlspecialchars($_SESSION['first_name'] ?? '');
 $sess_last    = htmlspecialchars($_SESSION['last_name'] ?? '');
 $sess_role    = $_SESSION['role'] ?? 'student';
-if ($sess_role === 'student') {
-    header('Location: dashboard.php');
-    exit;
-}
 $sess_initial = strtoupper(substr($_SESSION['first_name'] ?? 'U', 0, 1));
 $sess_pic     = $_SESSION['profile_pic'] ?? null;
 $user_id      = (int)($_SESSION['user_id'] ?? 0);

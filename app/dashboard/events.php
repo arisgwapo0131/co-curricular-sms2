@@ -70,7 +70,28 @@ if ($conn) {
 }
 
 // -- Fetch events from DB -------------------------------------
-$events = [];
+$status_order_sql = in_array($sess_role, ['admin', 'super_admin'])
+    ? "CASE 
+            WHEN e.status = 'Pending Admin' THEN 1
+            WHEN e.status = 'Pending SSC' THEN 2
+            WHEN e.status = 'Pending OSA' THEN 3
+            WHEN e.status = 'Pending Adviser' THEN 4
+            WHEN e.status = 'Returned' THEN 5
+            WHEN e.status = 'Upcoming' THEN 6
+            WHEN e.status = 'Approved' THEN 7
+            ELSE 8
+        END ASC"
+    : "CASE 
+            WHEN e.status = 'Pending SSC' THEN 1
+            WHEN e.status = 'Pending OSA' THEN 2
+            WHEN e.status = 'Pending Admin' THEN 3
+            WHEN e.status = 'Pending Adviser' THEN 4
+            WHEN e.status = 'Returned' THEN 5
+            WHEN e.status = 'Upcoming' THEN 6
+            WHEN e.status = 'Approved' THEN 7
+            ELSE 8
+        END ASC";
+
 $events_q = $conn ? $conn->query(
     "SELECT e.id, e.club_id, e.event_type, e.title, e.description, e.event_date, e.start_time, e.end_time, e.venue,
             e.target_course, e.target_org, e.expected_attendees, e.requires_budget, e.budget_amount,
@@ -84,18 +105,7 @@ $events_q = $conn ? $conn->query(
      LEFT JOIN clubs c ON c.id = e.club_id
      LEFT JOIN users u ON u.id = e.created_by
      WHERE (e.deleted_at IS NULL OR e.deleted_at = '0000-00-00 00:00:00')
-     ORDER BY 
-        CASE 
-            WHEN e.status = 'Pending SSC' THEN 1
-            WHEN e.status = 'Pending OSA' THEN 2
-            WHEN e.status = 'Pending Admin' THEN 3
-            WHEN e.status = 'Pending Adviser' THEN 4
-            WHEN e.status = 'Returned' THEN 5
-            WHEN e.status = 'Upcoming' THEN 6
-            WHEN e.status = 'Approved' THEN 7
-            ELSE 8
-        END ASC, 
-        e.id DESC"
+     ORDER BY $status_order_sql, e.id DESC"
 ) : null;
 if ($events_q) {
     $events = $events_q->fetch_all(MYSQLI_ASSOC);
@@ -245,7 +255,7 @@ foreach ($events as $idx => &$ev) {
     }
 
     // Admin 6 Metrics calculation
-    if (in_array($ev['status'], ['Pending Admin', 'Pending SSC', 'Pending OSA', 'Pending Adviser'])) {
+    if ($ev['status'] === 'Pending Admin') {
         $admin_pending_approval_count++;
     }
     if ($ev['status'] === 'Approved' && substr($ev['created_at'] ?? '', 0, 10) === $today_str) {
@@ -431,36 +441,166 @@ $isPostedView   = ($view === 'posted');
     width: auto !important;
   }
 
-  /* ── Admin Clearance Pipeline Table: Compact & Fluid (No Side-Scrolling) ── */
+  /* ── Layout Full-Width Assurance & Zero Right Gap ── */
+  .main {
+    flex: 1 !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+  .content,
+  .content-body,
+  .topbar,
+  .page-title-bar,
+  .calendar-section {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .sidebar.collapsed ~ .main,
+  .sidebar.collapsed + .main,
+  body.sidebar-collapsed .main,
+  body:has(.sidebar.collapsed) .main {
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  @media (min-width: 901px) and (max-width: 1024px) {
+    .sidebar:not(.collapsed) ~ .main {
+      margin-left: 195px !important;
+      width: calc(100% - 195px) !important;
+      max-width: calc(100% - 195px) !important;
+    }
+    .sidebar.collapsed ~ .main,
+    .sidebar.collapsed + .main,
+    body.sidebar-collapsed .main,
+    body:has(.sidebar.collapsed) .main {
+      margin-left: 0 !important;
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+  }
+  @media (max-width: 900px) {
+    .main,
+    .sidebar ~ .main,
+    .sidebar.collapsed ~ .main,
+    .sidebar:not(.collapsed) ~ .main,
+    body.sidebar-collapsed .main,
+    body:has(.sidebar.collapsed) .main {
+      margin-left: 0 !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      min-width: 0 !important;
+    }
+  }
+
+  /* ── Responsive 6-Metric Cards Grid with Generous Spacing ── */
+  .events-metric-grid {
+    display: grid !important;
+    grid-template-columns: repeat(6, 1fr) !important;
+    gap: 16px !important;
+    margin-bottom: 20px !important;
+    width: 100% !important;
+    align-items: stretch !important;
+  }
+  .events-metric-grid .info-card {
+    padding: 16px 18px !important;
+    border-radius: 12px !important;
+    border: 1px solid #e2e8f0 !important;
+    background: #ffffff !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.02) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease !important;
+  }
+  .events-metric-grid .info-card:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.08) !important;
+    border-color: #cbd5e1 !important;
+  }
+  .events-metric-grid .info-card .card-label {
+    font-size: 0.72rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 6px !important;
+    line-height: 1.25 !important;
+    gap: 6px !important;
+    letter-spacing: 0.02em !important;
+  }
+  .events-metric-grid .info-card .card-amount {
+    font-size: 1.55rem !important;
+    font-weight: 800 !important;
+    margin: 4px 0 6px !important;
+    line-height: 1.15 !important;
+  }
+  .events-metric-grid .info-card .card-detail {
+    font-size: 0.72rem !important;
+    line-height: 1.35 !important;
+    color: #64748b !important;
+  }
+  @media (max-width: 1400px) {
+    .events-metric-grid {
+      grid-template-columns: repeat(3, 1fr) !important;
+      gap: 14px !important;
+    }
+  }
+  @media (max-width: 768px) {
+    .events-metric-grid {
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 12px !important;
+    }
+  }
+  @media (max-width: 480px) {
+    .events-metric-grid {
+      grid-template-columns: 1fr !important;
+      gap: 10px !important;
+    }
+  }
+
+  /* ── Admin Clearance Pipeline Table: Clean & Responsive (Fits Screen Perfectly) ── */
   #adminEventQueueTable {
     width: 100% !important;
-    min-width: 0 !important;
+    min-width: 860px !important;
     max-width: 100% !important;
-    table-layout: fixed !important;
+    table-layout: auto !important;
     border-collapse: separate;
     border-spacing: 0;
   }
   #adminEventQueueTable th,
   #adminEventQueueTable td {
-    padding: 7px 8px !important;
-    font-size: 0.77rem !important;
+    padding: 10px 12px !important;
+    font-size: 0.78rem !important;
     vertical-align: middle !important;
-    word-break: break-word;
+    word-break: normal;
   }
   #adminEventQueueTable th {
-    padding: 8px 8px !important;
-    font-size: 0.70rem !important;
+    padding: 11px 12px !important;
+    font-size: 0.71rem !important;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.03em;
     color: #475569;
-    white-space: nowrap;
+    white-space: nowrap !important;
+    line-height: 1.25;
     background: #f8fafc;
     border-bottom: 2px solid #e2e8f0;
   }
+  #adminEventQueueTable th:last-child {
+    text-align: right !important;
+    min-width: 195px !important;
+  }
+  #adminEventQueueTable .event-ref-pill {
+    font-family: monospace;
+    font-weight: 700;
+    color: #2563eb;
+    font-size: 0.75rem;
+    white-space: nowrap !important;
+    word-break: normal !important;
+    display: inline-block;
+  }
   #adminEventQueueTable .club-badge {
-    font-size: 0.66rem !important;
-    padding: 1px 5px !important;
+    font-size: 0.64rem !important;
+    padding: 1px 4px !important;
     font-weight: 700;
   }
   #adminEventQueueTable .badge-active,
@@ -469,8 +609,8 @@ $isPostedView   = ($view === 'posted');
   #adminEventQueueTable .badge-info,
   #adminEventQueueTable .badge-purple,
   #adminEventQueueTable .badge-danger {
-    font-size: 0.66rem !important;
-    padding: 2px 5px !important;
+    font-size: 0.64rem !important;
+    padding: 1px 5px !important;
     line-height: 1.2 !important;
     border-radius: 4px;
     white-space: nowrap;
@@ -479,13 +619,14 @@ $isPostedView   = ($view === 'posted');
     display: inline-flex !important;
     align-items: center !important;
     justify-content: flex-end !important;
-    gap: 3px !important;
+    gap: 2.5px !important;
     flex-wrap: nowrap !important;
-    width: 100%;
+    width: auto !important;
+    min-width: 195px !important;
   }
   #adminEventQueueTable .admin-tbl-act-btn {
-    width: 26px;
-    height: 26px;
+    width: 25px;
+    height: 25px;
     padding: 0;
     border-radius: 5px;
     display: inline-flex;
@@ -998,7 +1139,7 @@ $isPostedView   = ($view === 'posted');
     overflow: hidden;
   }
   .cal-day-cell {
-    min-height: 70px;
+    min-height: 85px;
     min-width: 0;
     max-width: 100%;
     width: 100%;
@@ -1054,11 +1195,11 @@ $isPostedView   = ($view === 'posted');
     margin-left: auto;
   }
   .cal-event-pill {
-    font-size: 0.62rem;
-    padding: 2.5px 5px;
+    font-size: 0.65rem;
+    padding: 2px 5px;
     border-radius: 4px;
     color: #fff;
-    font-weight: 700;
+    font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1165,24 +1306,123 @@ $isPostedView   = ($view === 'posted');
   .calendar-legend {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
-    padding: 8px 18px;
-    border-top: 1px solid #f1f5f9;
+    gap: 8px;
+    padding: 10px 18px;
+    border-top: 1px solid #e2e8f0;
     background: #f8fafc;
   }
   .legend-item {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 5px;
+  }
+  .legend-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     font-size: 0.72rem;
-    color: #64748b;
     font-weight: 600;
+    color: #475569;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
   }
   .legend-dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
     flex-shrink: 0;
+  }
+  .cal-pill-badge {
+    display: inline-block;
+    font-size: 0.58rem;
+    font-weight: 800;
+    background: rgba(0,0,0,0.22);
+    padding: 1px 4px;
+    border-radius: 3px;
+    margin-right: 3px;
+    letter-spacing: 0.02em;
+    vertical-align: middle;
+  }
+  .cal-pill-text {
+    vertical-align: middle;
+  }
+  .cal-more-pill {
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: #2563eb;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    padding: 2px 5px;
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s ease;
+    margin-top: 1px;
+    line-height: 1.25;
+  }
+  .cal-more-pill:hover {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+  }
+  .cal-org-select-wrap select:focus {
+    background: rgba(255,255,255,0.28) !important;
+    border-color: #ffffff !important;
+  }
+
+  /* Schedule List Rows */
+  .cal-schedule-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 11px 14px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    transition: all 0.15s ease;
+  }
+  .cal-schedule-item:hover {
+    border-color: #93c5fd;
+    box-shadow: 0 2px 10px rgba(37,99,235,0.08);
+    transform: translateY(-1px);
+  }
+  .cal-schedule-datebox {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 8px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1d4ed8;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+  .cal-schedule-datebox .datebox-month {
+    font-size: 0.60rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .cal-schedule-datebox .datebox-day {
+    font-size: 1.15rem;
+    font-weight: 800;
+    margin-top: 2px;
+  }
+  .cal-schedule-datebox.is-holiday {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #b91c1c;
+  }
+  .cal-schedule-datebox.is-exam {
+    background: #fffbeb;
+    border-color: #fde68a;
+    color: #b45309;
   }
   @keyframes calPulse {
     0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); }
@@ -1357,23 +1597,45 @@ require_once __DIR__ . '/../shared/sidebar.php';
   </div>
 
   <div class="content">
-    <div class="page-title-bar" style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-      <div>
-        <h2 class="page-title" style="margin:0; font-size:1.4rem; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:10px;">
-          <i class="fa-solid fa-calendar-days" style="color:#2563eb;"></i>
-          Event &amp; Activity Logs
-        </h2>
-        <span class="page-subtitle" style="font-size:0.80rem; color:#64748b; margin-top:3px; display:inline-block;">
-          <?php if ($sess_role === 'student'): ?>
-            <?= ($events_view === 'calendar') ? 'Active Campus Event Calendar &bull; View schedules and register' : 'Directory of official campus events posted for your participation' ?>
-          <?php else: ?>
-            <?= ($events_view === 'calendar') ? 'Interactive Campus Event Schedule, Holidays &bull; Venue Conflict Manager' : 'Event Proposals &bull; Multi-Tier Endorsement &bull; Administrative Clearance Pipeline' ?>
+    <div class="page-title-bar" style="margin-bottom:14px; padding:12px 20px;">
+      <!-- Module Title & Primary Action Buttons -->
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div>
+          <h2 class="page-title" style="margin:0; font-size:1.25rem; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
+            <i class="fa-solid fa-calendar-days" style="color:#2563eb;"></i>
+            Event &amp; Activity Logs
+          </h2>
+          <span class="page-subtitle" style="font-size:0.75rem; color:#64748b; margin-top:2px; display:inline-block;">
+            <?php if ($sess_role === 'student'): ?>
+              <?= ($events_view === 'calendar') ? 'Active Campus Event Calendar &bull; View schedules and register' : 'Directory of official campus events posted for your participation' ?>
+            <?php else: ?>
+              <?= ($events_view === 'calendar') ? 'Interactive Campus Event Schedule, Holidays &bull; Venue Conflict Manager' : 'Event Proposals &bull; Multi-Tier Endorsement &bull; Administrative Clearance Pipeline' ?>
+            <?php endif; ?>
+          </span>
+        </div>
+
+        <!-- Global Action Toolbar -->
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <?php if (can_any(['events.create.own', 'events.create.institutional'])): ?>
+            <button type="button" class="card-btn btn-sm btn-ai-planner" onclick="openModal('aiPlannerModal')" title="Open AI Event Planner &amp; Schedule Conflict Optimizer" aria-label="Open AI Event Planner" style="height:32px; padding:0 12px; font-size:0.8rem; font-weight:700;">
+              <i class="fa-solid fa-wand-magic-sparkles" style="color:#facc15;"></i> AI Event Planner
+            </button>
           <?php endif; ?>
-        </span>
+
+          <?php if (in_array($sess_role, ['admin', 'super_admin'])): ?>
+            <button type="button" class="card-btn btn-sm" style="background:#16a34a; color:#fff; font-weight:700; height:32px; padding:0 12px; font-size:0.8rem; border-radius:8px; display:inline-flex; align-items:center; gap:6px; border:none; cursor:pointer;" onclick="openCreateEventModal()" title="Create Institutional / Campus Event">
+              <i class="fa-solid fa-calendar-plus"></i> Create Institutional Event
+            </button>
+          <?php elseif (in_array($sess_role, ['club_adviser', 'ssc', 'staff']) || can('events.create.own')): ?>
+            <button type="button" class="card-btn btn-sm" style="background:#16a34a; color:#fff; font-weight:700; height:32px; padding:0 12px; font-size:0.8rem; border-radius:8px; display:inline-flex; align-items:center; gap:6px; border:none; cursor:pointer;" onclick="openCreateEventModal()" title="Propose New Event">
+              <i class="fa-solid fa-calendar-plus"></i> Create Event Proposal
+            </button>
+          <?php endif; ?>
+        </div>
       </div>
     </div>
 
-    <div class="content-body">
+    <div class="content-body" style="padding-top:10px; gap:16px;">
 
       <!-- ----------------------------------------------------------
            ACTIVE INTERACTIVE EVENT CALENDAR
@@ -1392,17 +1654,31 @@ require_once __DIR__ . '/../shared/sidebar.php';
             <p>Click any highlighted date or event pill to view details &amp; register</p>
           </div>
           <div class="calendar-header-right">
+            <!-- Organization Filter -->
+            <div class="cal-org-select-wrap">
+              <select id="calOrgSelect" onchange="filterCalendarByOrg(this.value)" style="height:36px; padding:0 12px; border-radius:18px; border:1.5px solid rgba(255,255,255,0.32); background:rgba(255,255,255,0.18); color:#fff; font-size:0.8rem; font-weight:600; cursor:pointer; outline:none;" title="Filter calendar by organization">
+                <option value="" style="color:#0f172a;">All Organizations</option>
+                <option value="INSTITUTIONAL" style="color:#0f172a;">BCP Institutional</option>
+                <?php foreach ($clubs as $c): ?>
+                  <option value="<?= htmlspecialchars($c['code']) ?>" style="color:#0f172a;"><?= htmlspecialchars($c['code']) ?> - <?= htmlspecialchars($c['name']) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+
+            <!-- Search box -->
             <div class="cal-search-box" id="calSearchBox">
               <i class="fa-solid fa-magnifying-glass cal-search-icon"></i>
               <input type="text" id="calSearchInput" placeholder="Search calendar events..." autocomplete="off" />
               <button type="button" id="calSearchClear" class="cal-search-clear" title="Clear search" style="display:none;"><i class="fa-solid fa-xmark"></i></button>
               <div class="cal-search-results-dropdown" id="calSearchResults"></div>
             </div>
+
+            <!-- Month navigation -->
             <div class="calendar-nav">
               <button class="cal-nav-btn" id="calPrevBtn" title="Previous month">
                 <i class="fa-solid fa-chevron-left"></i>
               </button>
-              <span class="cal-month-label" id="calMonthTitle">August 2026</span>
+              <span class="cal-month-label" id="calMonthTitle">October 2026</span>
               <button class="cal-nav-btn" id="calNextBtn" title="Next month">
                 <i class="fa-solid fa-chevron-right"></i>
               </button>
@@ -1422,23 +1698,47 @@ require_once __DIR__ . '/../shared/sidebar.php';
 
         <!-- Legend -->
         <div class="calendar-legend">
-          <div class="legend-item"><span class="legend-dot" style="background:#dc2626;"></span> 🇵🇭 Regular Holiday (Non-Working)</div>
-          <div class="legend-item"><span class="legend-dot" style="background:#7c3aed;"></span> 🇵🇭 Special Non-Working Day</div>
-          <div class="legend-item"><span class="legend-dot" style="background:#d97706;"></span> 🎓 Academic Exam Blackout</div>
-          <div class="legend-item"><span class="legend-dot" style="background:#16a34a;"></span> Approved Event</div>
-          <div class="legend-item"><span class="legend-dot" style="background:#2563eb;"></span> Upcoming Event</div>
-          <div class="legend-item"><span class="legend-dot" style="background:#d97706;"></span> Pending SSC Review</div>
-          <div class="legend-item"><span class="legend-dot" style="background:#64748b;"></span> Completed Event</div>
-          <div class="legend-item"><i class="fa-solid fa-circle-check" style="color:#16a34a; font-size:0.85rem;"></i> You are registered</div>
+          <div class="legend-item"><span class="legend-badge"><i class="fa-solid fa-flag" style="color:#dc2626;"></i> Regular Holiday</span></div>
+          <div class="legend-item"><span class="legend-badge"><i class="fa-solid fa-star" style="color:#7c3aed;"></i> Special Non-Working</span></div>
+          <div class="legend-item"><span class="legend-badge"><i class="fa-solid fa-graduation-cap" style="color:#b45309;"></i> Exam Blackout</span></div>
+          <div class="legend-item"><span class="legend-badge"><span class="legend-dot" style="background:#16a34a;"></span> Approved Event</span></div>
+          <div class="legend-item"><span class="legend-badge"><span class="legend-dot" style="background:#2563eb;"></span> Upcoming Event</span></div>
+          <div class="legend-item"><span class="legend-badge"><span class="legend-dot" style="background:#d97706;"></span> Pending Review</span></div>
+          <div class="legend-item"><span class="legend-badge"><span class="legend-dot" style="background:#64748b;"></span> Completed</span></div>
+          <div class="legend-item"><span class="legend-badge"><i class="fa-solid fa-circle-check" style="color:#16a34a;"></i> Registered</span></div>
         </div>
       </div><!-- /calendar-section -->
+
+      <!-- Active Month Events Schedule & Highlights -->
+      <div class="card" id="calMonthScheduleCard" style="<?= !$show_calendar ? 'display:none; ' : '' ?>margin-top:10px; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px; border-bottom:1px solid #f1f5f9; padding-bottom:12px;">
+          <div>
+            <h3 style="margin:0; font-size:1.05rem; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
+              <i class="fa-solid fa-list-check" style="color:#2563eb;"></i>
+              <span id="calScheduleCardTitle">Scheduled Activities for Active Month</span>
+            </h3>
+            <p style="margin:3px 0 0; font-size:0.78rem; color:#64748b;" id="calScheduleCardSubtitle">
+              Detailed schedule breakdown of official events and academic milestones for the selected calendar period.
+            </p>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span id="calScheduleCountBadge" style="background:#eff6ff; color:#1d4ed8; font-weight:700; font-size:0.75rem; padding:4px 10px; border-radius:12px; border:1px solid #bfdbfe;">
+              0 Activities
+            </span>
+          </div>
+        </div>
+        <!-- Schedule List Container -->
+        <div id="calMonthScheduleList" style="display:flex; flex-direction:column; gap:8px;">
+          <!-- Rendered by renderCalendarSchedule() -->
+        </div>
+      </div>
 
       <?php if (in_array($sess_role, ['ssc', 'staff'])): ?>
       <div id="sscPipelineSection" <?= ($events_view === 'calendar') ? 'style="display:none;"' : '' ?>>
         <!-- ──────────────────────────────────────────────────────────
              1. SSC EVENT DASHBOARD CARDS (6 Metrics)
         ────────────────────────────────────────────────────────── -->
-        <div class="info-row" style="grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 22px;">
+        <div class="events-metric-grid">
           <!-- 1. Pending SSC Review -->
           <div class="info-card ssc-metric-card" id="cardPendingSsc" onclick="filterSscByCard('Pending SSC')" style="cursor:pointer;" title="Click to filter queue by Pending SSC Review">
             <div class="card-label"><i class="fa-solid fa-clock-rotate-left" style="color:#d97706;"></i> Pending SSC Review</div>
@@ -1491,16 +1791,7 @@ require_once __DIR__ . '/../shared/sidebar.php';
                 </span>
               <?php endif; ?>
             </h3>
-          </div>
-          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-            <?php if (can_any(['events.create.own', 'events.create.institutional'])): ?>
-              <button type="button" class="card-btn btn-sm btn-ai-planner" onclick="openModal('aiPlannerModal')" title="Open AI Event Planner &amp; Schedule Conflict Optimizer" aria-label="Open AI Event Planner">
-                <i class="fa-solid fa-wand-magic-sparkles"></i> AI Event Planner
-              </button>
-            <?php endif; ?>
-            <button type="button" class="card-btn btn-sm" id="openCreateEventSsc" style="background:#16a34a; color:#fff; font-weight:700; padding:8px 14px; border-radius:8px;" onclick="openCreateEventModal()" title="Create Institutional / Council Event Proposal">
-              <i class="fa-solid fa-calendar-plus"></i> Create Institutional Proposal
-            </button>
+            <p style="margin:4px 0 0; font-size:0.8rem; color:#64748b;">Review and endorse student organization proposals before submitting for administrative clearance.</p>
           </div>
         </div>
 
@@ -1767,7 +2058,7 @@ require_once __DIR__ . '/../shared/sidebar.php';
         <!-- ──────────────────────────────────────────────────────────
              ADMIN EVENT ADMINISTRATION CARDS (6 Metrics)
         ────────────────────────────────────────────────────────── -->
-        <div class="info-row" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 22px;">
+        <div class="events-metric-grid">
           <!-- 1. Pending Admin Approval -->
           <div class="info-card admin-metric-card" id="cardAdminPendingApproval" onclick="filterAdminByCard('Pending Admin')" style="cursor:pointer; transition:all 0.2s ease;" title="Click to filter by Pending Admin Approval (Passed SSC review)">
             <div class="card-label"><i class="fa-solid fa-hourglass-half" style="color:#d97706;"></i> Pending Admin Approval</div>
@@ -1809,10 +2100,10 @@ require_once __DIR__ . '/../shared/sidebar.php';
         <!-- ──────────────────────────────────────────────────────────
              ADMIN EVENT ADMINISTRATION TABLE (8 Columns Specified)
         ────────────────────────────────────────────────────────── -->
-        <div class="card" id="adminEventQueueCard">
-          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+        <div class="card" id="adminEventQueueCard" style="padding:18px 20px; margin-bottom:24px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
             <div>
-              <h3 style="margin:0; font-size:1.15rem; color:#1e293b; display:flex; align-items:center; gap:8px;">
+              <h3 style="margin:0; font-size:1.1rem; color:#1e293b; display:flex; align-items:center; gap:8px;">
                 <i class="fa-solid fa-calendar-check" style="color:#2563eb;"></i> Event Administration &amp; Clearance Pipeline
                 <?php if ($admin_pending_approval_count > 0): ?>
                   <span style="background:#fef3c7; color:#d97706; font-size:0.75rem; padding:3px 10px; border-radius:12px; font-weight:700;">
@@ -1820,33 +2111,29 @@ require_once __DIR__ . '/../shared/sidebar.php';
                   </span>
                 <?php endif; ?>
               </h3>
-              <p style="margin:4px 0 0 0; font-size:0.8rem; color:#64748b;">Review SSC-endorsed activities, verify documentary attachments, and issue administrative clearance.</p>
+              <p style="margin:4px 0 0 0; font-size:0.78rem; color:#64748b;">Review SSC-endorsed activities, verify documentary attachments, and issue administrative clearance.</p>
             </div>
-            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-              <?php if (can_any(['events.create.own', 'events.create.institutional'])): ?>
-                <button type="button" class="card-btn btn-sm btn-ai-planner" onclick="openModal('aiPlannerModal')" title="Open AI Event Planner &amp; Schedule Conflict Optimizer" aria-label="Open AI Event Planner">
-                  <i class="fa-solid fa-wand-magic-sparkles"></i> AI Event Planner
-                </button>
-              <?php endif; ?>
-              <button type="button" class="card-btn btn-sm" style="background:#16a34a; color:#fff; font-weight:700; padding:8px 14px; border-radius:8px;" onclick="openCreateEventModal()" title="Create Institutional / Administrative Event">
-                <i class="fa-solid fa-calendar-plus"></i> Create Institutional Event
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <button type="button" class="card-btn btn-sm" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; font-weight:600; padding:6px 12px; font-size:0.78rem; border-radius:6px;" onclick="exportAdminQueueToCSV()" title="Export visible queue to CSV spreadsheet">
+                <i class="fa-solid fa-file-csv" style="color:#059669;"></i> Export Queue
               </button>
             </div>
           </div>
 
           <!-- Filter & Search Toolbar -->
-          <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; align-items:center; background:#f8fafc; padding:12px 14px; border-radius:8px; border:1px solid #e2e8f0;">
+          <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px; align-items:center; background:#f8fafc; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
             <!-- Search Input -->
             <div style="flex:1; min-width:220px; position:relative;">
               <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:0.85rem;"></i>
-              <input type="text" id="adminQueueSearchInput" placeholder="Search Event ID, title, organization, venue, review notes..." onkeyup="filterAdminEventQueue()" style="width:100%; padding:8px 12px 8px 34px; border-radius:6px; border:1px solid #cbd5e1; font-size:0.85rem; box-sizing:border-box;" />
+              <input type="text" id="adminQueueSearchInput" placeholder="Search Event ID, title, organization, venue, review notes..." onkeyup="filterAdminEventQueue()" style="width:100%; padding:7px 10px 7px 32px; border-radius:6px; border:1px solid #cbd5e1; font-size:0.82rem; box-sizing:border-box;" />
             </div>
 
             <!-- Admin Status Filter -->
-            <div style="min-width:180px;">
-              <select id="adminQueueStatusFilter" onchange="filterAdminEventQueue()" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid #cbd5e1; font-size:0.85rem; background:#fff; cursor:pointer;">
+            <div style="min-width:170px;">
+              <select id="adminQueueStatusFilter" onchange="filterAdminEventQueue()" style="width:100%; padding:7px 10px; border-radius:6px; border:1px solid #cbd5e1; font-size:0.82rem; background:#fff; cursor:pointer;">
                 <option value="">All Admin States</option>
                 <option value="Pending Admin">Pending Admin Approval</option>
+                <option value="Pending SSC">Pending SSC Review</option>
                 <option value="Approved">Approved</option>
                 <option value="Returned">Returned</option>
                 <option value="Rejected">Rejected</option>
@@ -1855,7 +2142,7 @@ require_once __DIR__ . '/../shared/sidebar.php';
 
             <!-- Organization Filter -->
             <div style="min-width:160px;">
-              <select id="adminQueueOrgFilter" onchange="filterAdminEventQueue()" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid #cbd5e1; font-size:0.85rem; background:#fff; cursor:pointer;">
+              <select id="adminQueueOrgFilter" onchange="filterAdminEventQueue()" style="width:100%; padding:7px 10px; border-radius:6px; border:1px solid #cbd5e1; font-size:0.82rem; background:#fff; cursor:pointer;">
                 <option value="">All Organizations</option>
                 <option value="INSTITUTIONAL">BCP Institutional</option>
                 <?php foreach ($clubs as $c): ?>
@@ -1866,14 +2153,14 @@ require_once __DIR__ . '/../shared/sidebar.php';
 
             <!-- Reset Filter Button -->
             <div>
-              <button type="button" onclick="resetAdminQueueFilter()" class="card-btn btn-sm" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-size:0.82rem; padding:7px 12px; border-radius:6px; cursor:pointer;">
+              <button type="button" onclick="resetAdminQueueFilter()" class="card-btn btn-sm" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-size:0.8rem; padding:7px 12px; border-radius:6px; cursor:pointer;">
                 <i class="fa-solid fa-rotate-left"></i> Reset
               </button>
             </div>
           </div>
 
           <!-- Active card filter indicator badge bar -->
-          <div id="adminFilterNoticeBar" style="display:none; margin-bottom:14px; background:#eff6ff; border:1px solid #93c5fd; color:#1d4ed8; padding:8px 14px; border-radius:8px; font-size:0.82rem; justify-content:space-between; align-items:center;">
+          <div id="adminFilterNoticeBar" style="display:none; margin-bottom:12px; background:#eff6ff; border:1px solid #93c5fd; color:#1d4ed8; padding:8px 14px; border-radius:6px; font-size:0.80rem; justify-content:space-between; align-items:center;">
             <span id="adminFilterNoticeText"><i class="fa-solid fa-filter"></i> Filtering table records</span>
             <button type="button" onclick="resetAdminQueueFilter()" style="background:none; border:none; color:#1d4ed8; cursor:pointer; font-weight:700;"><i class="fa-solid fa-xmark"></i> Clear</button>
           </div>
@@ -1883,32 +2170,32 @@ require_once __DIR__ . '/../shared/sidebar.php';
             <table id="adminEventQueueTable" class="data-table resp-table mobile-card-table no-auto-paginate" style="width:100%;">
               <thead>
                 <tr>
-                  <th style="width:8%;">Event ID</th>
-                  <th style="width:24%;">Event &amp; Documentary Requirements</th>
-                  <th style="width:13%;">Organization</th>
-                  <th style="width:11%;">Date</th>
-                  <th style="width:11%;">Venue</th>
-                  <th style="width:10%;">SSC Review</th>
-                  <th style="width:9%;">Admin Status</th>
-                  <th style="text-align:right; width:14%;">Action</th>
+                  <th style="width:10%; min-width:90px; white-space:nowrap;">Event ID</th>
+                  <th style="width:24%; min-width:175px;">Event &amp; Requirements</th>
+                  <th style="width:11%; min-width:90px;">Organization</th>
+                  <th style="width:11%; min-width:85px; white-space:nowrap;">Date</th>
+                  <th style="width:9%; min-width:75px;">Venue</th>
+                  <th style="width:10%; min-width:85px;">SSC Review</th>
+                  <th style="width:9%; min-width:80px;">Admin Status</th>
+                  <th style="text-align:right; width:16%; min-width:195px; white-space:nowrap;">Action</th>
                 </tr>
               </thead>
               <tbody id="adminEventQueueBody">
                 <?php if (empty($events)): ?>
                   <tr id="adminQueueEmptyRow">
-                    <td colspan="8" class="empty-state-cell" style="text-align:center; padding:36px 16px; color:#94a3b8;">
+                    <td colspan="8" class="empty-state-cell" style="text-align:center; padding:28px 14px; color:#94a3b8;">
                       <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; width:100%; margin:0 auto;">
-                        <i class="fa-solid fa-calendar-xmark" style="font-size:2.2rem; margin-bottom:10px; display:inline-block; color:#94a3b8;"></i>
-                        <span style="font-weight:600; font-size:0.9rem; color:#475569; text-align:center;">No event proposals in queue.</span>
+                        <i class="fa-solid fa-calendar-xmark" style="font-size:1.8rem; margin-bottom:6px; display:inline-block; color:#94a3b8;"></i>
+                        <span style="font-weight:600; font-size:0.85rem; color:#475569; text-align:center;">No event proposals in queue.</span>
                       </div>
                     </td>
                   </tr>
                 <?php else: ?>
                   <tr id="adminQueueEmptyRow" style="display:none;">
-                    <td colspan="8" class="empty-state-cell" style="text-align:center; padding:36px 16px; color:#94a3b8;">
+                    <td colspan="8" class="empty-state-cell" style="text-align:center; padding:28px 14px; color:#94a3b8;">
                       <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; width:100%; margin:0 auto;">
-                        <i class="fa-solid fa-magnifying-glass" style="font-size:2rem; margin-bottom:8px; display:inline-block; color:#94a3b8;"></i>
-                        <span style="font-weight:600; font-size:0.9rem; color:#475569; text-align:center;">No events match the current filter criteria.</span>
+                        <i class="fa-solid fa-magnifying-glass" style="font-size:1.8rem; margin-bottom:6px; display:inline-block; color:#94a3b8;"></i>
+                        <span style="font-weight:600; font-size:0.85rem; color:#475569; text-align:center;">No events match the current filter criteria.</span>
                       </div>
                     </td>
                   </tr>
@@ -1933,57 +2220,57 @@ require_once __DIR__ . '/../shared/sidebar.php';
                         data-upcoming="<?= $is_upcoming ? '1' : '0' ?>"
                         data-date="<?= date('Y-m-d', $ev_ts) ?>">
                       <!-- 1. Event ID -->
-                      <td data-label="Event ID">
-                        <span style="font-family:monospace; font-weight:700; color:#2563eb; font-size:0.75rem; word-break:break-all;"><?= htmlspecialchars($ev['event_ref_id']) ?></span>
+                      <td data-label="Event ID" style="white-space:nowrap;">
+                        <span class="event-ref-pill"><?= htmlspecialchars($ev['event_ref_id']) ?></span>
                       </td>
                       <!-- 2. Event -->
                       <td data-label="Event">
-                        <div style="font-weight:700; color:#1e293b; font-size:0.79rem; line-height:1.25; margin-bottom:2px;" title="<?= htmlspecialchars($ev['title']) ?>">
+                        <div style="font-weight:700; color:#1e293b; font-size:0.78rem; line-height:1.2; margin-bottom:2px;" title="<?= htmlspecialchars($ev['title']) ?>">
                           <?= htmlspecialchars($ev['title']) ?>
                         </div>
-                        <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
-                          <span class="badge-<?= $ev['event_type'] === 'Institutional' ? 'purple' : 'info' ?>" style="font-size:0.62rem; font-weight:700; padding:1px 5px; border-radius:3px;">
+                        <div style="display:flex; align-items:center; gap:3px; flex-wrap:wrap;">
+                          <span class="badge-<?= $ev['event_type'] === 'Institutional' ? 'purple' : 'info' ?>" style="font-size:0.60rem; font-weight:700; padding:1px 4px; border-radius:3px;">
                             <?= htmlspecialchars($ev['event_type']) ?>
                           </span>
                           <?php if ($req_budget === 1 && (float)($ev['budget_amount'] ?? 0) > 0): ?>
-                            <span style="font-size:0.62rem; font-weight:700; color:#047857; background:#ecfdf5; border:1px solid #a7f3d0; padding:1px 5px; border-radius:3px; display:inline-flex; align-items:center; gap:3px;">
+                            <span style="font-size:0.60rem; font-weight:700; color:#047857; background:#ecfdf5; border:1px solid #a7f3d0; padding:1px 4px; border-radius:3px; display:inline-flex; align-items:center; gap:2px;">
                               <i class="fa-solid fa-coins"></i> ₱<?= number_format((float)($ev['budget_amount'] ?? 0), 2) ?>
                             </span>
                           <?php else: ?>
-                            <span style="font-size:0.62rem; font-weight:700; color:#64748b; background:#f8fafc; border:1px solid #cbd5e1; padding:1px 5px; border-radius:3px;">
-                              No Budget (Optional)
+                            <span style="font-size:0.60rem; font-weight:700; color:#64748b; background:#f8fafc; border:1px solid #cbd5e1; padding:1px 4px; border-radius:3px;">
+                              No Budget
                             </span>
                           <?php endif; ?>
                           <?php if ($ev['has_venue_conflict']): ?>
-                            <span class="badge-danger" style="font-size:0.62rem; padding:1px 5px; border-radius:3px; background:#fef2f2; color:#b91c1c; border:1px solid #fca5a5;">
+                            <span class="badge-danger" style="font-size:0.60rem; padding:1px 4px; border-radius:3px; background:#fef2f2; color:#b91c1c; border:1px solid #fca5a5;">
                               <i class="fa-solid fa-triangle-exclamation"></i> Conflict
                             </span>
                           <?php endif; ?>
                           <?php if ($is_overdue): ?>
-                            <span style="font-size:0.62rem; padding:1px 5px; border-radius:3px; background:#faf5ff; color:#7e22ce; border:1px solid #d8b4fe; font-weight:700;">
+                            <span style="font-size:0.60rem; padding:1px 4px; border-radius:3px; background:#faf5ff; color:#7e22ce; border:1px solid #d8b4fe; font-weight:700;">
                               <i class="fa-solid fa-fire-flame-curved"></i> SLA (<?= $dp ?>d)
                             </span>
                           <?php endif; ?>
                         </div>
                         <!-- 4 Documentary Requirements Mini Badges -->
-                        <div style="display:flex; flex-wrap:wrap; gap:3px; margin-top:4px;">
-                          <span style="font-size:0.6rem; font-weight:700; padding:1px 4px; border-radius:3px; background:<?= !empty($ev['doc_letter']) ? '#eff6ff' : '#fef2f2' ?>; color:<?= !empty($ev['doc_letter']) ? '#1d4ed8' : '#b91c1c' ?>; border:1px solid <?= !empty($ev['doc_letter']) ? '#bfdbfe' : '#fecaca' ?>;">
+                        <div style="display:flex; flex-wrap:wrap; gap:2px; margin-top:3px;">
+                          <span style="font-size:0.58rem; font-weight:700; padding:1px 3px; border-radius:3px; background:<?= !empty($ev['doc_letter']) ? '#eff6ff' : '#fef2f2' ?>; color:<?= !empty($ev['doc_letter']) ? '#1d4ed8' : '#b91c1c' ?>; border:1px solid <?= !empty($ev['doc_letter']) ? '#bfdbfe' : '#fecaca' ?>;">
                             <i class="fa-solid <?= !empty($ev['doc_letter']) ? 'fa-check' : 'fa-xmark' ?>"></i> Letter
                           </span>
-                          <span style="font-size:0.6rem; font-weight:700; padding:1px 4px; border-radius:3px; background:<?= !empty($ev['doc_board_resolution']) ? '#f5f3ff' : '#fef2f2' ?>; color:<?= !empty($ev['doc_board_resolution']) ? '#6d28d9' : '#b91c1c' ?>; border:1px solid <?= !empty($ev['doc_board_resolution']) ? '#ddd6fe' : '#fecaca' ?>;">
+                          <span style="font-size:0.58rem; font-weight:700; padding:1px 3px; border-radius:3px; background:<?= !empty($ev['doc_board_resolution']) ? '#f5f3ff' : '#fef2f2' ?>; color:<?= !empty($ev['doc_board_resolution']) ? '#6d28d9' : '#b91c1c' ?>; border:1px solid <?= !empty($ev['doc_board_resolution']) ? '#ddd6fe' : '#fecaca' ?>;">
                             <i class="fa-solid <?= !empty($ev['doc_board_resolution']) ? 'fa-check' : 'fa-xmark' ?>"></i> Board Res.
                           </span>
-                          <span style="font-size:0.6rem; font-weight:700; padding:1px 4px; border-radius:3px; background:<?= !empty($ev['doc_liquidation']) ? '#fffbeb' : '#fef2f2' ?>; color:<?= !empty($ev['doc_liquidation']) ? '#b45309' : '#b91c1c' ?>; border:1px solid <?= !empty($ev['doc_liquidation']) ? '#fde68a' : '#fecaca' ?>;">
+                          <span style="font-size:0.58rem; font-weight:700; padding:1px 3px; border-radius:3px; background:<?= !empty($ev['doc_liquidation']) ? '#fffbeb' : '#fef2f2' ?>; color:<?= !empty($ev['doc_liquidation']) ? '#b45309' : '#b91c1c' ?>; border:1px solid <?= !empty($ev['doc_liquidation']) ? '#fde68a' : '#fecaca' ?>;">
                             <i class="fa-solid <?= !empty($ev['doc_liquidation']) ? 'fa-check' : 'fa-xmark' ?>"></i> Liquidation
                           </span>
                           <?php if ($req_budget === 1): ?>
-                            <span style="font-size:0.6rem; font-weight:700; padding:1px 4px; border-radius:3px; background:<?= !empty($ev['doc_budget_proposal']) ? '#ecfdf5' : '#f1f5f9' ?>; color:<?= !empty($ev['doc_budget_proposal']) ? '#047857' : '#64748b' ?>; border:1px solid <?= !empty($ev['doc_budget_proposal']) ? '#a7f3d0' : '#cbd5e1' ?>;">
+                            <span style="font-size:0.58rem; font-weight:700; padding:1px 3px; border-radius:3px; background:<?= !empty($ev['doc_budget_proposal']) ? '#ecfdf5' : '#f1f5f9' ?>; color:<?= !empty($ev['doc_budget_proposal']) ? '#047857' : '#64748b' ?>; border:1px solid <?= !empty($ev['doc_budget_proposal']) ? '#a7f3d0' : '#cbd5e1' ?>;">
                               <i class="fa-solid <?= !empty($ev['doc_budget_proposal']) ? 'fa-check' : 'fa-minus' ?>"></i> Budget Prop.
                             </span>
                           <?php endif; ?>
                         </div>
                         <?php if ($ev['rejection_note']): ?>
-                          <div style="font-size:0.68rem; color:#dc2626; margin-top:2px; line-height:1.2;">
+                          <div style="font-size:0.66rem; color:#dc2626; margin-top:2px; line-height:1.2;">
                             <i class="fa-solid fa-comment-dots"></i> <?= htmlspecialchars($ev['rejection_note']) ?>
                           </div>
                         <?php endif; ?>
@@ -1991,33 +2278,33 @@ require_once __DIR__ . '/../shared/sidebar.php';
                       <!-- 3. Organization -->
                       <td data-label="Organization">
                         <div>
-                          <span class="club-badge" style="font-size:0.66rem; padding:1px 5px;"><?= htmlspecialchars($ev['club_code']) ?></span>
+                          <span class="club-badge" style="font-size:0.64rem; padding:1px 4px;"><?= htmlspecialchars($ev['club_code']) ?></span>
                         </div>
-                        <div style="font-size:0.72rem; color:#475569; margin-top:2px; line-height:1.2; word-break:break-word;" title="<?= htmlspecialchars($ev['club_name']) ?>">
+                        <div style="font-size:0.70rem; color:#475569; margin-top:1px; line-height:1.2; word-break:break-word;" title="<?= htmlspecialchars($ev['club_name']) ?>">
                           <?= htmlspecialchars($ev['club_name']) ?>
                         </div>
                       </td>
                       <!-- 4. Date & Target Scope -->
                       <td data-label="Date">
-                        <div style="font-weight:600; color:#1e293b; font-size:0.75rem; white-space:nowrap;"><?= date('M d, Y', $ev_ts) ?></div>
-                        <div style="color:#64748b; font-size:0.69rem; white-space:nowrap; margin-top:1px;">
+                        <div style="font-weight:600; color:#1e293b; font-size:0.73rem; white-space:nowrap;"><?= date('M d, Y', $ev_ts) ?></div>
+                        <div style="color:#64748b; font-size:0.67rem; white-space:nowrap; margin-top:1px;">
                           <?php if (!empty($ev['start_time']) && !empty($ev['end_time'])): ?>
-                            <i class="fa-regular fa-clock" style="font-size:0.65rem;"></i> <?= date('g:i A', strtotime($ev['start_time'])) ?> &ndash; <?= date('g:i A', strtotime($ev['end_time'])) ?>
+                            <i class="fa-regular fa-clock" style="font-size:0.63rem;"></i> <?= date('g:i A', strtotime($ev['start_time'])) ?> &ndash; <?= date('g:i A', strtotime($ev['end_time'])) ?>
                           <?php else: ?>
-                            <i class="fa-regular fa-clock" style="font-size:0.65rem;"></i> <?= date('h:i A', $ev_ts) ?>
+                            <i class="fa-regular fa-clock" style="font-size:0.63rem;"></i> <?= date('h:i A', $ev_ts) ?>
                           <?php endif; ?>
                         </div>
                         <?php if (!empty($ev['target_course']) && $ev['target_course'] !== 'All Courses'): ?>
-                          <div style="margin-top:2px;"><span style="background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe; font-size:0.65rem; font-weight:700; padding:1px 5px; border-radius:3px;"><i class="fa-solid fa-graduation-cap"></i> <?= htmlspecialchars($ev['target_course']) ?></span></div>
+                          <div style="margin-top:1px;"><span style="background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe; font-size:0.62rem; font-weight:700; padding:1px 4px; border-radius:3px;"><i class="fa-solid fa-graduation-cap"></i> <?= htmlspecialchars($ev['target_course']) ?></span></div>
                         <?php endif; ?>
                       </td>
                       <!-- 5. Venue -->
                       <td data-label="Venue">
-                        <div style="color:#1e293b; font-weight:500; font-size:0.75rem; line-height:1.2; word-break:break-word;" title="<?= htmlspecialchars($ev['venue']) ?>">
-                          <i class="fa-solid fa-location-dot" style="color:#64748b; font-size:0.69rem;"></i> <?= htmlspecialchars($ev['venue']) ?>
+                        <div style="color:#1e293b; font-weight:500; font-size:0.73rem; line-height:1.2; word-break:break-word;" title="<?= htmlspecialchars($ev['venue']) ?>">
+                          <i class="fa-solid fa-location-dot" style="color:#64748b; font-size:0.67rem;"></i> <?= htmlspecialchars($ev['venue']) ?>
                         </div>
                         <?php if ($ev['has_venue_conflict']): ?>
-                          <div style="font-size:0.66rem; color:#ea580c; font-weight:700; margin-top:2px;">
+                          <div style="font-size:0.64rem; color:#ea580c; font-weight:700; margin-top:1px;">
                             <i class="fa-solid fa-triangle-exclamation"></i> Conflict
                           </div>
                         <?php endif; ?>
@@ -2025,28 +2312,28 @@ require_once __DIR__ . '/../shared/sidebar.php';
                       <!-- 6. SSC Review -->
                       <td data-label="SSC Review">
                         <?php if (in_array($ev['status'], ['Pending Admin', 'Approved']) || strpos($ev['endorsement_notes'] ?? '', 'Endorsed') !== false): ?>
-                          <span class="badge-active" style="display:inline-flex; align-items:center; gap:3px; font-size:0.66rem; font-weight:700; padding:2px 5px;">
+                          <span class="badge-active" style="display:inline-flex; align-items:center; gap:2px; font-size:0.64rem; font-weight:700; padding:1px 4px;">
                             <i class="fa-solid fa-circle-check"></i> Passed SSC
                           </span>
                           <?php if (!empty($ev['endorsement_notes'])): ?>
-                            <div style="font-size:0.67rem; color:#64748b; margin-top:2px; line-height:1.2; word-break:break-word;" title="<?= htmlspecialchars($ev['endorsement_notes']) ?>">
+                            <div style="font-size:0.65rem; color:#64748b; margin-top:1px; line-height:1.2; word-break:break-word;" title="<?= htmlspecialchars($ev['endorsement_notes']) ?>">
                               <?= htmlspecialchars(mb_strimwidth($ev['endorsement_notes'], 0, 36, '...')) ?>
                             </div>
                           <?php endif; ?>
                         <?php elseif ($ev['status'] === 'Pending SSC'): ?>
-                          <span class="badge-warning" style="display:inline-flex; align-items:center; gap:3px; font-size:0.66rem; font-weight:700; padding:2px 5px;">
+                          <span class="badge-warning" style="display:inline-flex; align-items:center; gap:2px; font-size:0.64rem; font-weight:700; padding:1px 4px;">
                             <i class="fa-solid fa-clock"></i> In Review
                           </span>
                         <?php elseif ($ev['status'] === 'Returned'): ?>
-                          <span class="badge-warning" style="display:inline-flex; align-items:center; gap:3px; font-size:0.66rem; font-weight:700; padding:2px 5px;">
+                          <span class="badge-warning" style="display:inline-flex; align-items:center; gap:2px; font-size:0.64rem; font-weight:700; padding:1px 4px;">
                             <i class="fa-solid fa-rotate-left"></i> Returned
                           </span>
                         <?php elseif ($ev['status'] === 'Rejected'): ?>
-                          <span class="badge-inactive" style="display:inline-flex; align-items:center; gap:3px; font-size:0.66rem; font-weight:700; padding:2px 5px;">
+                          <span class="badge-inactive" style="display:inline-flex; align-items:center; gap:2px; font-size:0.64rem; font-weight:700; padding:1px 4px;">
                             <i class="fa-solid fa-ban"></i> SSC Rejected
                           </span>
                         <?php else: ?>
-                          <span class="badge-info" style="font-size:0.66rem; font-weight:700; padding:2px 5px;">
+                          <span class="badge-info" style="font-size:0.64rem; font-weight:700; padding:1px 4px;">
                             <?= htmlspecialchars($ev['status']) ?>
                           </span>
                         <?php endif; ?>
@@ -2054,34 +2341,38 @@ require_once __DIR__ . '/../shared/sidebar.php';
                       <!-- 7. Admin Status -->
                       <td data-label="Admin Status">
                         <?php if ($ev['status'] === 'Pending Admin'): ?>
-                          <span class="badge-warning" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-size:0.66rem; font-weight:700; display:inline-flex; align-items:center; gap:3px; padding:2px 5px;">
+                          <span class="badge-warning" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-size:0.64rem; font-weight:700; display:inline-flex; align-items:center; gap:2px; padding:1px 4px;">
                             <i class="fa-solid fa-hourglass-half"></i> Pending
                           </span>
                         <?php elseif ($ev['status'] === 'Approved'): ?>
-                          <span class="badge-active" style="font-size:0.66rem; font-weight:700; display:inline-flex; align-items:center; gap:3px; padding:2px 5px;">
+                          <span class="badge-active" style="font-size:0.64rem; font-weight:700; display:inline-flex; align-items:center; gap:2px; padding:1px 4px;">
                             <i class="fa-solid fa-circle-check"></i> Approved
                           </span>
                         <?php elseif ($ev['status'] === 'Rejected'): ?>
-                          <span class="badge-inactive" style="font-size:0.66rem; font-weight:700; display:inline-flex; align-items:center; gap:3px; padding:2px 5px;">
+                          <span class="badge-inactive" style="font-size:0.64rem; font-weight:700; display:inline-flex; align-items:center; gap:2px; padding:1px 4px;">
                             <i class="fa-solid fa-ban"></i> Rejected
                           </span>
                         <?php elseif ($ev['status'] === 'Returned'): ?>
-                          <span class="badge-warning" style="font-size:0.66rem; font-weight:700; display:inline-flex; align-items:center; gap:3px; padding:2px 5px;">
+                          <span class="badge-warning" style="font-size:0.64rem; font-weight:700; display:inline-flex; align-items:center; gap:2px; padding:1px 4px;">
                             <i class="fa-solid fa-rotate-left"></i> Returned
                           </span>
                         <?php else: ?>
-                          <span class="badge-info" style="font-size:0.66rem; font-weight:700; padding:2px 5px;">
+                          <span class="badge-info" style="font-size:0.64rem; font-weight:700; padding:1px 4px;">
                             <?= htmlspecialchars($ev['status']) ?>
                           </span>
                         <?php endif; ?>
                       </td>
                       <!-- 8. Action (Approve / override / return / reject / edit / details) -->
-                      <td data-label="Action" style="text-align:right;">
+                      <td data-label="Action" style="text-align:right; white-space:nowrap;">
                         <div class="event-act-group">
                           <!-- 1. Approve Button -->
-                          <?php if (in_array($ev['status'], ['Pending Admin', 'Pending SSC', 'Pending OSA', 'Pending Adviser', 'Returned'])): ?>
+                          <?php if ($ev['status'] === 'Pending Admin'): ?>
                             <button type="button" class="admin-tbl-act-btn" style="background:#16a34a; color:#fff;" onclick="adminApproveEvent(<?= $ev['id'] ?>, '<?= htmlspecialchars(addslashes($ev['title'])) ?>')" title="Approve and Publish to Campus Calendar" aria-label="Approve">
                               <i class="fa-solid fa-check"></i>
+                            </button>
+                          <?php elseif ($ev['status'] === 'Pending SSC'): ?>
+                            <button type="button" class="admin-tbl-act-btn btn-disabled" disabled title="Awaiting Stage 2 SSC Endorsement (Use Override Clearance to bypass)" aria-label="Awaiting SSC Review">
+                              <i class="fa-solid fa-clock"></i>
                             </button>
                           <?php else: ?>
                             <button type="button" class="admin-tbl-act-btn btn-disabled" disabled title="Approve Unavailable (Status: <?= htmlspecialchars($ev['status']) ?>)" aria-label="Approve Disabled">
@@ -2139,7 +2430,6 @@ require_once __DIR__ . '/../shared/sidebar.php';
             </table>
           </div>
         </div>
-      </div>
       </div>
       <?php endif; ?>
 
@@ -3295,9 +3585,9 @@ function switchStudentEventsView(viewName) {
       );
     }
 
-    /*
-     * Render calendar.
-     */
+    // Render calendar.
+    const calScheduleCard = document.getElementById('calMonthScheduleCard');
+    if (calScheduleCard) calScheduleCard.style.display = 'block';
     if (typeof window.renderCalendar === 'function') {
       window.renderCalendar();
     }
@@ -3311,9 +3601,13 @@ function switchStudentEventsView(viewName) {
    * ============================================================
    */
 
-  // Hide calendar
+  // Hide calendar and monthly schedule
   if (calSection) {
     calSection.style.display = 'none';
+  }
+  const calScheduleCard = document.getElementById('calMonthScheduleCard');
+  if (calScheduleCard) {
+    calScheduleCard.style.display = 'none';
   }
 
   // Show posted events
@@ -3451,6 +3745,7 @@ function switchEventsView(viewName) {
     return;
   }
   const calSection = document.getElementById('activeCalendarSection');
+  const calScheduleCard = document.getElementById('calMonthScheduleCard');
   const sscPipeline = document.getElementById('sscPipelineSection');
   const adminPipeline = document.getElementById('adminPipelineSection');
   const eventsList = document.getElementById('eventsListCard');
@@ -3461,12 +3756,13 @@ function switchEventsView(viewName) {
 
   if (viewName === 'calendar') {
     if (calSection) calSection.style.display = 'block';
+    if (calScheduleCard) calScheduleCard.style.display = 'block';
     if (sscPipeline) sscPipeline.style.display = 'none';
     if (adminPipeline) adminPipeline.style.display = 'none';
     if (eventsList) eventsList.style.display = 'none';
 
     if (pageTitleEl) {
-      pageTitleEl.innerHTML = '<i class="fa-solid fa-calendar-days"></i> Active Calendar';
+      pageTitleEl.innerHTML = '<i class="fa-solid fa-calendar-days" style="color:#2563eb;"></i> Event &amp; Activity Logs';
     }
     if (pageSubEl) {
       pageSubEl.textContent = 'Interactive campus event schedule, holidays & venue conflict manager';
@@ -3492,16 +3788,16 @@ function switchEventsView(viewName) {
     }
   } else {
     if (calSection) calSection.style.display = 'none';
+    if (calScheduleCard) calScheduleCard.style.display = 'none';
     if (sscPipeline) sscPipeline.style.display = 'block';
     if (adminPipeline) adminPipeline.style.display = 'block';
     if (eventsList) eventsList.style.display = 'block';
 
     if (pageTitleEl) {
-      const pipelineTitle = (ROLE === 'ssc') ? 'Event Proposals' : 'Event Proposals & Pipeline';
-      pageTitleEl.innerHTML = `<i class="fa-solid fa-calendar-days"></i> ${pipelineTitle}`;
+      pageTitleEl.innerHTML = '<i class="fa-solid fa-calendar-days" style="color:#2563eb;"></i> Event &amp; Activity Logs';
     }
     if (pageSubEl) {
-      pageSubEl.textContent = 'Manage event submissions, endorsements & administrative clearances';
+      pageSubEl.textContent = 'Manage event submissions, multi-tier endorsements & administrative clearances';
     }
 
     btnCal?.classList.remove('active');
@@ -3525,6 +3821,66 @@ function switchEventsView(viewName) {
   }
 }
 window.switchEventsView = switchEventsView;
+
+function exportAdminQueueToCSV() {
+  const rows = Array.from(document.querySelectorAll('#adminEventQueueBody tr.admin-queue-row'))
+    .filter(tr => tr.style.display !== 'none');
+
+  if (!rows.length) {
+    if (typeof window.showSystemModal === 'function') {
+      window.showSystemModal({
+        title: 'Export Unavailable',
+        message: 'No visible event proposals to export in the clearance queue.',
+        type: 'info'
+      });
+    } else {
+      alert('No visible event proposals to export.');
+    }
+    return;
+  }
+
+  const headers = ['Event ID', 'Event Title', 'Event Type', 'Organization', 'Date', 'Venue', 'SSC Review Status', 'Admin Status'];
+  const clean = str => `"${(str || '').replace(/"/g, '""').trim()}"`;
+
+  const csvRows = rows.map(tr => {
+    const idEl = tr.querySelector('[data-label="Event ID"]');
+    const titleEl = tr.querySelector('[data-label="Event"] > div:first-child');
+    const type = tr.getAttribute('data-type') || '';
+    const org = tr.getAttribute('data-org') || '';
+    const date = tr.getAttribute('data-date') || '';
+    const venueEl = tr.querySelector('[data-label="Venue"]');
+    const sscEl = tr.querySelector('[data-label="SSC Review"]');
+    const status = tr.getAttribute('data-status') || '';
+
+    return [
+      clean(idEl ? idEl.innerText : ''),
+      clean(titleEl ? titleEl.innerText : ''),
+      clean(type),
+      clean(org),
+      clean(date),
+      clean(venueEl ? venueEl.innerText.replace(/Conflict/g, '').trim() : ''),
+      clean(sscEl ? sscEl.innerText.trim() : ''),
+      clean(status)
+    ].join(',');
+  });
+
+  const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...csvRows].join('\n');
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement('a');
+  link.setAttribute('href', encodedUri);
+  link.setAttribute('download', `bcp_event_clearance_queue_${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+window.exportAdminQueueToCSV = exportAdminQueueToCSV;
+
+let calOrgFilter = '';
+function filterCalendarByOrg(orgCode) {
+  calOrgFilter = orgCode || '';
+  renderCalendar();
+}
+window.filterCalendarByOrg = filterCalendarByOrg;
 
 function renderCalendar() {
   const year = currentDate.getFullYear();
@@ -3566,7 +3922,10 @@ function renderCalendar() {
     cell.className = `cal-day-cell${isToday ? ' today' : ''}`;
 
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const dayEvents = ALL_EVENTS.filter(ev => ev && ev.event_date && String(ev.event_date).startsWith(dateStr));
+    let dayEvents = ALL_EVENTS.filter(ev => ev && ev.event_date && String(ev.event_date).startsWith(dateStr));
+    if (calOrgFilter) {
+      dayEvents = dayEvents.filter(ev => ev.club_code === calOrgFilter);
+    }
     const hol = PH_HOLIDAYS[dateStr] || null;
     cell.setAttribute('data-full-date', dateStr);
 
@@ -3612,7 +3971,7 @@ function renderCalendar() {
     }
     cell.appendChild(dateNumEl);
 
-    // 🇵🇭 Render Philippine Holiday / Special Non-Working Day / Academic Exam Blackout Pill
+    // 1. Render Philippine Holiday / Special Non-Working Day / Academic Exam Blackout Pill
     if (hol) {
       const hPill = document.createElement('div');
       let hClass = 'cal-holiday-regular';
@@ -3624,6 +3983,12 @@ function renderCalendar() {
         hClass = 'cal-holiday-exam';
         icon = '<i class="fa-solid fa-graduation-cap"></i>';
       }
+
+      let displayName = hol.name;
+      if (displayName.includes('Midterm Examination')) displayName = 'Midterm Exams';
+      else if (displayName.includes('Final Examination')) displayName = 'Final Exams';
+      else if (displayName.includes('Prelim Examination')) displayName = 'Prelim Exams';
+      else if (displayName.length > 20) displayName = displayName.slice(0, 18) + '...';
 
       if (calSearchQuery) {
         const holFullText = [hol.name, hol.filipino_name, hol.category, hol.type, hol.description, 'exam', 'midterm', 'final', 'examination'].filter(Boolean).join(' ');
@@ -3637,7 +4002,7 @@ function renderCalendar() {
 
       hPill.className = `cal-holiday-pill ${hClass}`;
       hPill.title = `${hol.name} (${hol.category}): ${hol.description}`;
-      hPill.innerHTML = `${icon} <span>${hol.name}</span>`;
+      hPill.innerHTML = `${icon} <span>${displayName}</span>`;
       hPill.addEventListener('click', (e) => {
         e.stopPropagation();
         viewHolidayModal(hol);
@@ -3645,8 +4010,12 @@ function renderCalendar() {
       cell.appendChild(hPill);
     }
 
-    // Event pills
-    dayEvents.forEach(ev => {
+    // 2. Render Event pills with overflow management
+    const maxEventsToShow = hol ? 1 : 2;
+    const visibleEvents = dayEvents.slice(0, maxEventsToShow);
+    const hiddenEventsCount = dayEvents.length - visibleEvents.length;
+
+    visibleEvents.forEach(ev => {
       let pillClass = 'cal-pill-approved';
       if (ev.status === 'Pending OSA' || ev.status === 'Pending SSC')  pillClass = 'cal-pill-pending';
       else if (ev.status === 'Completed') pillClass = 'cal-pill-completed';
@@ -3666,13 +4035,26 @@ function renderCalendar() {
       const pill = document.createElement('div');
       pill.className = `cal-event-pill ${pillClass}`;
       pill.title = `${ev.title} — ${ev.club_code}${ev.has_venue_conflict ? ' (WARNING: Venue & Time Conflict!)' : ''}`;
-      pill.innerHTML = `${ev.club_code}: ${ev.title}${isReg ? ' <i class="fa-solid fa-circle-check"></i>' : ''}${ev.has_venue_conflict ? ' <i class="fa-solid fa-triangle-exclamation" style="color:#ef4444; margin-left:3px;" title="Venue & Time Conflict with another event!"></i>' : ''}`;
+      const shortClub = ev.club_code ? `<span class="cal-pill-badge">${ev.club_code}</span>` : '';
+      pill.innerHTML = `${shortClub}<span class="cal-pill-text">${ev.title}</span>${isReg ? ' <i class="fa-solid fa-circle-check" style="font-size:0.65rem; margin-left:2px;"></i>' : ''}${ev.has_venue_conflict ? ' <i class="fa-solid fa-triangle-exclamation" style="color:#ef4444; margin-left:2px;" title="Venue Conflict"></i>' : ''}`;
       pill.addEventListener('click', e => {
         e.stopPropagation();
         viewEvent(ev);
       });
       cell.appendChild(pill);
     });
+
+    if (hiddenEventsCount > 0) {
+      const morePill = document.createElement('div');
+      morePill.className = 'cal-more-pill';
+      morePill.textContent = `+${hiddenEventsCount} more...`;
+      morePill.title = `Click to view all scheduled events on ${dateStr}`;
+      morePill.addEventListener('click', (e) => {
+        e.stopPropagation();
+        viewDayEventsModal(dateStr, dayEvents, hol);
+      });
+      cell.appendChild(morePill);
+    }
 
     if (calSearchQuery) {
       if (cellHasMatch) {
@@ -3694,6 +4076,177 @@ function renderCalendar() {
     cell.innerHTML = `<div class="cal-date-num">${i}</div>`;
     grid.appendChild(cell);
   }
+
+  // Update schedule list below calendar
+  if (typeof renderCalendarSchedule === 'function') {
+    renderCalendarSchedule(year, month);
+  }
+}
+
+function renderCalendarSchedule(year, month) {
+  const container = document.getElementById('calMonthScheduleList');
+  if (!container) return;
+
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const titleEl = document.getElementById('calScheduleCardTitle');
+  const countBadge = document.getElementById('calScheduleCountBadge');
+  if (titleEl) titleEl.textContent = `Scheduled Activities for ${monthNames[month]} ${year}`;
+
+  const monthPrefix = `${year}-${String(month+1).padStart(2,'0')}`;
+  
+  // Filter events for this month
+  let monthEvents = ALL_EVENTS.filter(ev => ev && ev.event_date && String(ev.event_date).startsWith(monthPrefix));
+  if (calOrgFilter) {
+    monthEvents = monthEvents.filter(ev => ev.club_code === calOrgFilter);
+  }
+  if (calSearchQuery) {
+    monthEvents = monthEvents.filter(ev => {
+      const t = [ev.title, ev.club_code, ev.club_name, ev.venue, ev.description].filter(Boolean).join(' ');
+      return matchesSearchQuery(t, calSearchQuery);
+    });
+  }
+
+  // Filter holidays for this month
+  const monthHolidays = [];
+  for (const [dStr, hol] of Object.entries(PH_HOLIDAYS)) {
+    if (dStr.startsWith(monthPrefix)) {
+      if (calSearchQuery) {
+        const t = [hol.name, hol.filipino_name, hol.category, hol.type, hol.description, 'exam', 'midterm', 'final', 'examination'].filter(Boolean).join(' ');
+        if (!matchesSearchQuery(t, calSearchQuery)) continue;
+      }
+      monthHolidays.push({ dateStr: dStr, hol: hol });
+    }
+  }
+
+  const totalCount = monthEvents.length + monthHolidays.length;
+  if (countBadge) {
+    countBadge.textContent = `${totalCount} ${totalCount === 1 ? 'Activity' : 'Activities'}`;
+  }
+
+  if (totalCount === 0) {
+    container.innerHTML = `
+      <div style="text-align:center; padding:36px 16px; color:#94a3b8; background:#f8fafc; border-radius:10px; border:1px dashed #cbd5e1;">
+        <i class="fa-solid fa-calendar-day" style="font-size:2.2rem; margin-bottom:10px; display:inline-block; color:#cbd5e1;"></i>
+        <div style="font-weight:700; font-size:0.92rem; color:#475569;">No events or activities scheduled for ${monthNames[month]} ${year}</div>
+        <p style="font-size:0.80rem; color:#94a3b8; margin:4px auto 14px; max-width:380px;">
+          Click any date cell in the calendar above or use "Create Event" to schedule an activity.
+        </p>
+      </div>
+    `;
+    return;
+  }
+
+  // Combine and sort by date ascending
+  const items = [];
+  monthEvents.forEach(ev => {
+    items.push({ type: 'event', dateStr: ev.event_date.slice(0, 10), data: ev });
+  });
+  monthHolidays.forEach(h => {
+    items.push({ type: 'holiday', dateStr: h.dateStr, data: h.hol });
+  });
+  items.sort((a, b) => a.dateStr.localeCompare(b.dateStr));
+
+  let html = '';
+  items.forEach(item => {
+    const dObj = new Date(item.dateStr + 'T00:00:00');
+    const mStr = dObj.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+    const dayNum = dObj.getDate();
+    const dayOfWeek = dObj.toLocaleDateString('en-US', { weekday: 'short' });
+
+    if (item.type === 'holiday') {
+      const hol = item.data;
+      const isExam = hol.type === 'exam_blackout';
+      const isSpecial = hol.type === 'special_non_working';
+      const icon = isExam ? 'fa-graduation-cap' : (isSpecial ? 'fa-star' : 'fa-flag');
+      const boxClass = isExam ? 'is-exam' : 'is-holiday';
+      const badgeBg = isExam ? '#fef3c7' : (isSpecial ? '#ede9fe' : '#fee2e2');
+      const badgeClr = isExam ? '#92400e' : (isSpecial ? '#5b21b6' : '#991b1b');
+      const badgeBrd = isExam ? '#fde68a' : (isSpecial ? '#ddd6fe' : '#fca5a5');
+
+      html += `
+        <div class="cal-schedule-item" style="cursor:pointer;" onclick="viewHolidayModal(PH_HOLIDAYS['${item.dateStr}'])">
+          <div style="display:flex; align-items:center; gap:12px; min-width:0; flex:1;">
+            <div class="cal-schedule-datebox ${boxClass}">
+              <span class="datebox-month">${mStr}</span>
+              <span class="datebox-day">${dayNum}</span>
+            </div>
+            <div style="min-width:0; flex:1;">
+              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:2px;">
+                <span style="font-size:0.65rem; font-weight:800; text-transform:uppercase; background:${badgeBg}; color:${badgeClr}; border:1px solid ${badgeBrd}; padding:2px 7px; border-radius:4px; display:inline-flex; align-items:center; gap:4px;">
+                  <i class="fa-solid ${icon}"></i> ${hol.category}
+                </span>
+                <span style="font-size:0.72rem; color:#64748b; font-weight:600;">${dayOfWeek}</span>
+              </div>
+              <div style="font-weight:700; font-size:0.88rem; color:#0f172a; line-height:1.3;">
+                ${hol.name}
+              </div>
+              <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">
+                ${hol.description || (isExam ? 'Academic milestone & schedule blackout.' : 'Philippine official calendar holiday.')}
+              </div>
+            </div>
+          </div>
+          <div>
+            <button type="button" class="card-btn btn-sm" style="background:#f8fafc; color:#475569; border:1px solid #cbd5e1; font-weight:600; font-size:0.75rem; padding:5px 12px; border-radius:6px; white-space:nowrap;">
+              <i class="fa-solid fa-circle-info"></i> Details
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      const ev = item.data;
+      const isReg = MY_REG_IDS.includes(parseInt(ev.id));
+      let statusBadge = '<span class="badge-active" style="font-size:0.68rem; font-weight:700; padding:2px 7px; border-radius:4px;"><i class="fa-solid fa-circle-check"></i> Approved</span>';
+      if (ev.status === 'Upcoming') {
+        statusBadge = '<span class="badge-info" style="font-size:0.68rem; font-weight:700; padding:2px 7px; border-radius:4px;"><i class="fa-solid fa-calendar-check"></i> Upcoming</span>';
+      } else if (ev.status === 'Pending Admin') {
+        statusBadge = '<span class="badge-warning" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-size:0.68rem; font-weight:700; padding:2px 7px; border-radius:4px;"><i class="fa-solid fa-hourglass-half"></i> Pending Admin</span>';
+      } else if (ev.status === 'Pending SSC') {
+        statusBadge = '<span class="badge-warning" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-size:0.68rem; font-weight:700; padding:2px 7px; border-radius:4px;"><i class="fa-solid fa-clock"></i> Pending SSC</span>';
+      } else if (ev.status === 'Completed') {
+        statusBadge = '<span class="badge-inactive" style="font-size:0.68rem; font-weight:700; padding:2px 7px; border-radius:4px;"><i class="fa-solid fa-check-double"></i> Completed</span>';
+      }
+
+      const timeFmt = (ev.start_time && ev.end_time) ? `${formatTime12(ev.start_time)} – ${formatTime12(ev.end_time)}` : (ev.start_time ? formatTime12(ev.start_time) : 'All Day Event');
+
+      html += `
+        <div class="cal-schedule-item" style="cursor:pointer;" onclick="viewEventById(${ev.id})">
+          <div style="display:flex; align-items:center; gap:12px; min-width:0; flex:1;">
+            <div class="cal-schedule-datebox">
+              <span class="datebox-month">${mStr}</span>
+              <span class="datebox-day">${dayNum}</span>
+            </div>
+            <div style="min-width:0; flex:1;">
+              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:2px;">
+                <span class="club-badge" style="font-size:0.65rem; font-weight:800; background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe; padding:2px 7px; border-radius:4px;">
+                  ${ev.club_code || 'CAMPUS'}
+                </span>
+                <span class="badge-${ev.event_type === 'Institutional' ? 'purple' : 'info'}" style="font-size:0.65rem; font-weight:700; padding:1px 6px; border-radius:4px;">
+                  ${ev.event_type}
+                </span>
+                <span style="font-size:0.72rem; color:#64748b; font-weight:600;">${dayOfWeek} &bull; ${timeFmt}</span>
+                ${isReg ? '<span style="background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; font-size:0.65rem; font-weight:700; padding:1px 6px; border-radius:4px; display:inline-flex; align-items:center; gap:3px;"><i class="fa-solid fa-circle-check"></i> Registered</span>' : ''}
+              </div>
+              <div style="font-weight:700; font-size:0.88rem; color:#0f172a; line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${ev.title}">
+                ${ev.title}
+              </div>
+              <div style="font-size:0.75rem; color:#64748b; margin-top:2px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <span><i class="fa-solid fa-location-dot" style="color:#94a3b8; font-size:0.7rem;"></i> ${ev.venue || 'Campus Venue'}</span>
+                ${ev.has_venue_conflict ? '<span style="color:#ea580c; font-weight:700; font-size:0.72rem;"><i class="fa-solid fa-triangle-exclamation"></i> Venue Conflict</span>' : ''}
+              </div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+            ${statusBadge}
+            <button type="button" class="card-btn btn-sm" style="background:#2563eb; color:#fff; font-weight:600; font-size:0.75rem; padding:6px 12px; border-radius:6px; white-space:nowrap;" onclick="event.stopPropagation(); viewEventById(${ev.id});">
+              <i class="fa-solid fa-eye"></i> View
+            </button>
+          </div>
+        </div>
+      `;
+    }
+  });
+
+  container.innerHTML = html;
 }
 
 function viewEventById(id) {
@@ -5488,7 +6041,7 @@ function filterAdminByCard(type) {
     const upcoming = r.getAttribute('data-upcoming');
 
     if (type === 'Pending Admin') {
-      show = (status === 'Pending Admin' || status === 'Pending SSC' || status === 'Pending OSA' || status === 'Pending Adviser');
+      show = (status === 'Pending Admin');
     } else if (type === 'Approved Today') {
       show = (apprToday === '1' || status === 'Approved');
     } else if (type === 'Rejected') {

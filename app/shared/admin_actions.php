@@ -97,7 +97,7 @@ switch ($action) {
             adRespond(false, 'Only System Administrators can create new accounts.');
         }
 
-        $username   = trim($_POST['username'] ?? '');
+        $username   = preg_replace('/\s+/', '', strtolower(trim($_POST['username'] ?? '')));
         $email      = trim($_POST['email'] ?? '');
         $first_name = trim($_POST['first_name'] ?? '');
         $last_name  = trim($_POST['last_name'] ?? '');
@@ -107,6 +107,7 @@ switch ($action) {
         $course     = trim($_POST['course'] ?? '');
         $year_level = trim($_POST['year_level'] ?? '1st Year');
         $section    = trim($_POST['section'] ?? '1A');
+        $club_id    = (int)($_POST['club_id'] ?? 0);
 
         $valid_roles = ['super_admin', 'admin', 'staff', 'student', 'club_adviser', 'ssc'];
         if (!$username || !$email || !$first_name || !$last_name || !$password || !in_array($role, $valid_roles)) {
@@ -116,37 +117,85 @@ switch ($action) {
             adRespond(false, 'Password must be at least 8 characters long.');
         }
 
-        // Check if username or email exists
-        $chk = $conn->prepare("SELECT id FROM users WHERE username = ? OR email = ? LIMIT 1");
-        $chk->bind_param('ss', $username, $email);
-        $chk->execute();
-        $res = $chk->get_result();
-        if ($res && $res->num_rows > 0) {
-            adRespond(false, 'Username or Email is already registered in the system.');
+        // Check if username already exists
+        $chk_u = $conn->prepare("SELECT id FROM users WHERE username = ? LIMIT 1");
+        $chk_u->bind_param('s', $username);
+        $chk_u->execute();
+        if ($chk_u->get_result()->num_rows > 0) {
+            $chk_u->close();
+            adRespond(false, "The username \"$username\" is already taken. Please choose another username.");
         }
-        $chk->close();
+        $chk_u->close();
 
-        $pw_hash = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $conn->prepare("INSERT INTO users (username, email, first_name, last_name, password_hash, role) VALUES (?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param('ssssss', $username, $email, $first_name, $last_name, $pw_hash, $role);
-        if (!$stmt->execute()) {
-            adRespond(false, 'Failed to create user: ' . $stmt->error);
+        // Check if email already exists
+        $chk_e = $conn->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
+        $chk_e->bind_param('s', $email);
+        $chk_e->execute();
+        if ($chk_e->get_result()->num_rows > 0) {
+            $chk_e->close();
+            adRespond(false, "The email address \"$email\" is already registered in the system.");
         }
-        $new_user_id = $stmt->insert_id;
-        $stmt->close();
+        $chk_e->close();
 
-        // If student role, create student record if provided
-        if ($role === 'student') {
-            $s_stmt = $conn->prepare("INSERT INTO students (student_number, first_name, last_name, birthday, course, year_level, section, phone, status) VALUES (?, ?, ?, '2004-01-01', ?, ?, ?, '09123456789', 'Active')");
-            $s_no = $student_no ?: ('2026-' . rand(10000, 99999));
-            $c_val = $course ?: 'Bachelor of Science in Information Technology';
-            $s_stmt->bind_param('ssssss', $s_no, $first_name, $last_name, $c_val, $year_level, $section);
-            $s_stmt->execute();
-            $s_stmt->close();
+        try {
+            $pw_hash = password_hash($password, PASSWORD_DEFAULT);
+            $stmt = $conn->prepare("INSERT INTO users (username, email, first_name, last_name, password_hash, role, status) VALUES (?, ?, ?, ?, ?, ?, 'Active')");
+            $stmt->bind_param('ssssss', $username, $email, $first_name, $last_name, $pw_hash, $role);
+            if (!$stmt->execute()) {
+                adRespond(false, 'Failed to create user account: ' . $stmt->error);
+            }
+            $new_user_id = (int)$stmt->insert_id;
+            $stmt->close();
+
+            // If student role, create or link student record
+            if ($role === 'student') {
+                $s_no = $student_no !== '' ? $student_no : ('2026-' . rand(10000, 99999));
+                $c_val = $course !== '' ? $course : 'Bachelor of Science in Information Technology';
+                $yr_val = $year_level !== '' ? $year_level : '1st Year';
+                $sec_val = $section !== '' ? $section : '1A';
+
+                // Check if a student with this student number already exists
+                $chk_st = $conn->prepare("SELECT id FROM students WHERE student_number = ? LIMIT 1");
+                $chk_st->bind_param('s', $s_no);
+                $chk_st->execute();
+                $st_res = $chk_st->get_result();
+                if ($st_res && $st_row = $st_res->fetch_assoc()) {
+                    // Update and link student record to new user account
+                    $st_id = (int)$st_row['id'];
+                    $upd_st = $conn->prepare("UPDATE students SET user_id = ?, first_name = ?, last_name = ?, course = ?, year_level = ?, section = ? WHERE id = ?");
+                    $upd_st->bind_param('isssssi', $new_user_id, $first_name, $last_name, $c_val, $yr_val, $sec_val, $st_id);
+                    $upd_st->execute();
+                    $upd_st->close();
+                } else {
+                    // Insert new student record with user_id
+                    $s_stmt = $conn->prepare("INSERT INTO students (user_id, student_number, first_name, last_name, birthday, course, year_level, section, phone, status) VALUES (?, ?, ?, ?, '2004-01-01', ?, ?, ?, '09123456789', 'Active')");
+                    $s_stmt->bind_param('issssss', $new_user_id, $s_no, $first_name, $last_name, $c_val, $yr_val, $sec_val);
+                    $s_stmt->execute();
+                    $s_stmt->close();
+                }
+                $chk_st->close();
+            }
+
+            // If club adviser and club selected, link adviser to club
+            if ($role === 'club_adviser' && $club_id > 0) {
+                $full_name = trim("$first_name $last_name");
+                $upd_c = $conn->prepare("UPDATE clubs SET adviser_user_id = ?, adviser_name = ? WHERE id = ?");
+                $upd_c->bind_param('isi', $new_user_id, $full_name, $club_id);
+                $upd_c->execute();
+                $upd_c->close();
+
+                // Also record in club_memberships
+                $cm = $conn->prepare("INSERT INTO club_memberships (user_id, club_id, role, status) VALUES (?, ?, 'Adviser', 'Active') ON DUPLICATE KEY UPDATE role = 'Adviser', status = 'Active'");
+                $cm->bind_param('ii', $new_user_id, $club_id);
+                $cm->execute();
+                $cm->close();
+            }
+
+            log_audit($conn, $user_id, 'admin_create_user', 'users', $new_user_id, "Created new user #$new_user_id ($username, $role)");
+            adRespond(true, "User account for \"$first_name $last_name\" created successfully!", ['user_id' => $new_user_id]);
+        } catch (Throwable $e) {
+            adRespond(false, 'Database error while creating user: ' . $e->getMessage());
         }
-
-        log_audit($conn, $user_id, 'admin_create_user', 'users', $new_user_id, "Created new user #$new_user_id ($username, $role)");
-        adRespond(true, "User account for \"$first_name $last_name\" created successfully!", ['user_id' => $new_user_id]);
     }
 
     // ── UPDATE USER DETAILS & ROLE (Admin only) ───────────────
@@ -608,12 +657,14 @@ switch ($action) {
         adRespond(true, 'User deleted.');
     }
 
-    // ── CREATE ACADEMIC PROGRAM (Admin only) ───────────────────
+    // ── CREATE ACADEMIC PROGRAM (Admin & SSC) ─────────────────
     case 'create_academic_program': {
-        if (!in_array($user_role, ['super_admin', 'admin'])) adRespond(false, 'Only System Administrators can manage academic programs.');
+        if (!in_array($user_role, ['super_admin', 'admin', 'ssc']) && !can('master_data.academic')) {
+            adRespond(false, 'Only Administrators or authorized Council Officers can manage academic programs.');
+        }
         $code       = strtoupper(trim($_POST['code'] ?? ''));
         $name       = trim($_POST['name'] ?? '');
-        $department = trim($_POST['department'] ?? 'Academic Affairs');
+        $department = !empty(trim($_POST['department'] ?? '')) ? trim($_POST['department']) : 'Academic Affairs';
         $status     = in_array($_POST['status'] ?? '', ['Active', 'Inactive']) ? $_POST['status'] : 'Active';
 
         if (!$code || !$name) {
@@ -624,7 +675,7 @@ switch ($action) {
         $chk->bind_param('s', $code);
         $chk->execute();
         if ($chk->get_result()->num_rows > 0) {
-            adRespond(false, "Program code '$code' already exists.");
+            adRespond(false, "Program code '$code' already exists in the Academic Programs directory.");
         }
         $chk->close();
 
@@ -637,21 +688,31 @@ switch ($action) {
         $stmt->close();
 
         log_audit($conn, $user_id, 'admin_create_academic_program', 'academic_programs', $prog_id, "Created academic program $code - $name");
-        adRespond(true, "Academic program '$code' created successfully.", ['id' => $prog_id]);
+        adRespond(true, "Academic program '$code' created successfully.", ['id' => $prog_id, 'code' => $code]);
     }
 
-    // ── UPDATE ACADEMIC PROGRAM (Admin only) ───────────────────
+    // ── UPDATE ACADEMIC PROGRAM (Admin & SSC) ─────────────────
     case 'update_academic_program': {
-        if (!in_array($user_role, ['super_admin', 'admin'])) adRespond(false, 'Only System Administrators can update academic programs.');
+        if (!in_array($user_role, ['super_admin', 'admin', 'ssc']) && !can('master_data.academic')) {
+            adRespond(false, 'Only Administrators or authorized Council Officers can update academic programs.');
+        }
         $id         = (int)($_POST['id'] ?? 0);
         $code       = strtoupper(trim($_POST['code'] ?? ''));
         $name       = trim($_POST['name'] ?? '');
-        $department = trim($_POST['department'] ?? 'Academic Affairs');
+        $department = !empty(trim($_POST['department'] ?? '')) ? trim($_POST['department']) : 'Academic Affairs';
         $status     = in_array($_POST['status'] ?? '', ['Active', 'Inactive']) ? $_POST['status'] : 'Active';
 
         if ($id <= 0 || !$code || !$name) {
             adRespond(false, 'Invalid academic program data.');
         }
+
+        $chk = $conn->prepare("SELECT id FROM academic_programs WHERE code = ? AND id != ? LIMIT 1");
+        $chk->bind_param('si', $code, $id);
+        $chk->execute();
+        if ($chk->get_result()->num_rows > 0) {
+            adRespond(false, "Program code '$code' is already used by another academic program.");
+        }
+        $chk->close();
 
         $stmt = $conn->prepare("UPDATE academic_programs SET code = ?, name = ?, department = ?, status = ? WHERE id = ?");
         $stmt->bind_param('ssssi', $code, $name, $department, $status, $id);
@@ -661,12 +722,14 @@ switch ($action) {
         $stmt->close();
 
         log_audit($conn, $user_id, 'admin_update_academic_program', 'academic_programs', $id, "Updated academic program $code ($status)");
-        adRespond(true, "Academic program '$code' updated successfully.");
+        adRespond(true, "Academic program '$code' updated successfully.", ['id' => $id, 'code' => $code]);
     }
 
-    // ── DELETE ACADEMIC PROGRAM (Admin only) ───────────────────
+    // ── DELETE ACADEMIC PROGRAM (Admin & SSC) ─────────────────
     case 'delete_academic_program': {
-        if (!in_array($user_role, ['super_admin', 'admin'])) adRespond(false, 'Only System Administrators can remove academic programs.');
+        if (!in_array($user_role, ['super_admin', 'admin', 'ssc']) && !can('master_data.academic')) {
+            adRespond(false, 'Only Administrators or authorized Council Officers can remove academic programs.');
+        }
         $id = (int)($_POST['id'] ?? 0);
         if ($id <= 0) adRespond(false, 'Invalid academic program ID.');
 
@@ -679,6 +742,130 @@ switch ($action) {
 
         log_audit($conn, $user_id, 'admin_delete_academic_program', 'academic_programs', $id, "Deleted academic program #$id");
         adRespond(true, "Academic program removed successfully.");
+    }
+
+    // ── CREATE NEW CLUB MASTER DATA (Admin only) ───────────────
+    case 'create_club_master': {
+        if (!in_array($user_role, ['super_admin', 'admin'])) adRespond(false, 'Only System Administrators can create organizations.');
+        $code         = strtoupper(trim($_POST['code'] ?? ''));
+        $name         = trim($_POST['name'] ?? '');
+        $category     = trim($_POST['category'] ?? 'Academic');
+        $sub_category = trim($_POST['sub_category'] ?? '');
+        $program      = trim($_POST['program'] ?? 'Institutional');
+        $description  = trim($_POST['description'] ?? '');
+        $adviser_user_id = !empty($_POST['adviser_user_id']) ? (int)$_POST['adviser_user_id'] : null;
+        $status       = trim($_POST['status'] ?? 'Active');
+
+        $valid_categories = ['Academic', 'Cultural', 'Sports', 'Advocacy', 'Religious'];
+        $valid_statuses   = ['Active', 'Pending Charter', 'Suspended'];
+
+        if (!$code || !$name) {
+            adRespond(false, 'Organization Code and Name are required.');
+        }
+        if (!in_array($category, $valid_categories)) {
+            adRespond(false, 'Invalid category selected.');
+        }
+        if (!in_array($status, $valid_statuses)) {
+            $status = 'Active';
+        }
+
+        // Duplicate code check
+        $chk = $conn->prepare("SELECT id FROM clubs WHERE code = ? AND deleted_at IS NULL LIMIT 1");
+        $chk->bind_param('s', $code);
+        $chk->execute();
+        if ($chk->get_result()->num_rows > 0) {
+            adRespond(false, "Organization code \"$code\" is already taken. Please choose another code.");
+        }
+        $chk->close();
+
+        // Resolve Adviser name
+        $adv_name = 'Unassigned';
+        if ($adviser_user_id) {
+            $u_stmt = $conn->prepare("SELECT CONCAT(first_name, ' ', last_name) AS fullname FROM users WHERE id = ?");
+            $u_stmt->bind_param('i', $adviser_user_id);
+            $u_stmt->execute();
+            $u_row = $u_stmt->get_result()->fetch_assoc();
+            $u_stmt->close();
+            if ($u_row) {
+                $adv_name = $u_row['fullname'];
+            } else {
+                $adviser_user_id = null;
+            }
+        }
+
+        // Default sub-category
+        if (empty($sub_category)) {
+            if ($category === 'Cultural') {
+                $sub_category = 'Talent Center';
+            } elseif ($category === 'Sports') {
+                $sub_category = 'Sports Club';
+            } elseif ($category === 'Advocacy') {
+                $sub_category = 'Campus-Wide Independent Bodies';
+            } elseif ($category === 'Religious') {
+                $sub_category = 'Spiritual & Faith Formation';
+            } else {
+                $sub_category = 'Academic Organization';
+            }
+        }
+
+        if ($adviser_user_id) {
+            $stmt = $conn->prepare("INSERT INTO clubs (code, name, category, sub_category, program, description, adviser_user_id, adviser_name, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param('ssssssiss', $code, $name, $category, $sub_category, $program, $description, $adviser_user_id, $adv_name, $status);
+        } else {
+            $stmt = $conn->prepare("INSERT INTO clubs (code, name, category, sub_category, program, description, adviser_name, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param('ssssssss', $code, $name, $category, $sub_category, $program, $description, $adv_name, $status);
+        }
+
+        if (!$stmt->execute()) {
+            adRespond(false, 'Failed to create organization: ' . $stmt->error);
+        }
+        $new_cid = $stmt->insert_id;
+        $stmt->close();
+
+        // Auto-initialize default club chat channels
+        $gen_name  = "$code • General Club Chat";
+        $gen_desc  = "Official group chat for $name faculty adviser, student officers, and all active members.";
+        $exec_name = "$code • Executive Board";
+        $exec_desc = "Leadership coordination channel for $name faculty adviser and student officers.";
+
+        $cg_stmt = $conn->prepare("
+            INSERT INTO chat_groups (club_id, group_type, name, description, icon)
+            VALUES (?, 'club_general', ?, ?, 'fa-comments'),
+                   (?, 'club_executive', ?, ?, 'fa-shield-halved')
+        ");
+        if ($cg_stmt) {
+            $cg_stmt->bind_param('isssis', $new_cid, $gen_name, $gen_desc, $new_cid, $exec_name, $exec_desc);
+            $cg_stmt->execute();
+            $cg_stmt->close();
+        }
+
+        // If adviser assigned and status is Active, record active membership
+        if ($adviser_user_id && $status === 'Active') {
+            $cm_ins = $conn->prepare("
+                INSERT INTO club_memberships (club_id, user_id, role, status, adviser_review, ssc_review)
+                VALUES (?, ?, 'Adviser', 'Active', 'Approved', 'Approved')
+                ON DUPLICATE KEY UPDATE role = 'Adviser', status = 'Active'
+            ");
+            if ($cm_ins) {
+                $cm_ins->bind_param('ii', $new_cid, $adviser_user_id);
+                $cm_ins->execute();
+                $cm_ins->close();
+            }
+            push_notification(
+                $conn,
+                $adviser_user_id,
+                'Assigned as Faculty Adviser',
+                "You have been assigned as the Faculty Club Adviser for \"$name\" ($code).",
+                'info',
+                'clubs',
+                $new_cid,
+                'club_directory.php',
+                'Normal'
+            );
+        }
+
+        log_audit($conn, $user_id, 'admin_create_club_master', 'clubs', $new_cid, "Admin created organization: $name ($code) with status $status");
+        adRespond(true, "Organization \"$name\" ($code) created successfully.", ['club_id' => $new_cid]);
     }
 
     // ── UPDATE CLUB MASTER STATUS & ADVISER (Admin only) ───────
@@ -711,8 +898,9 @@ switch ($action) {
                 $stmt->bind_param('sisi', $status, $adviser_user_id, $category, $club_id);
             }
         } else {
-            $stmt = $conn->prepare("UPDATE clubs SET status = ?, category = ? WHERE id = ?");
-            $stmt->bind_param('ssi', $status, $category, $club_id);
+            $unassigned = 'Unassigned';
+            $stmt = $conn->prepare("UPDATE clubs SET status = ?, adviser_user_id = NULL, adviser_name = ?, category = ? WHERE id = ?");
+            $stmt->bind_param('sssi', $status, $unassigned, $category, $club_id);
         }
 
         if (!$stmt->execute()) {

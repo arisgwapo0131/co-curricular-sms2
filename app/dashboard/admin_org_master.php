@@ -32,6 +32,11 @@ $faculty_advisers = $conn->query("
     SELECT id, first_name, last_name, email FROM users WHERE role = 'club_adviser' ORDER BY last_name, first_name
 ")->fetch_all(MYSQLI_ASSOC);
 
+// Query active academic programs for scope dropdown
+$academic_programs = $conn->query("
+    SELECT code, name FROM academic_programs WHERE status = 'Active' ORDER BY code ASC
+")->fetch_all(MYSQLI_ASSOC);
+
 $total_orgs     = count($clubs_master);
 $active_orgs    = count(array_filter($clubs_master, fn($c) => $c['status'] === 'Active'));
 $suspended_orgs = count(array_filter($clubs_master, fn($c) => $c['status'] === 'Suspended'));
@@ -218,14 +223,11 @@ require_once __DIR__ . '/../shared/sidebar.php';
   <!-- Content -->
   <div class="content">
 
-    <div class="page-title-bar" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+    <div class="page-title-bar">
       <h2 class="page-title">
         <i class="fa-solid fa-sitemap" style="color:#2563eb;"></i>
         Organization Master Data Management
       </h2>
-      <div style="font-size:0.8rem; color:#64748b; font-weight:600;">
-        Role: <strong style="color:#0f172a;">System Administrator</strong>
-      </div>
     </div>
 
     <div class="content-body">
@@ -264,8 +266,11 @@ require_once __DIR__ . '/../shared/sidebar.php';
             <h3 style="margin:0; font-size:1.05rem; color:#0f172a;"><i class="fa-solid fa-sitemap" style="color:#2563eb;"></i> Organization Directory Master</h3>
             <p style="margin:2px 0 0; font-size:0.78rem; color:#64748b;">Accreditation status control, category classifications, and faculty adviser assignments</p>
           </div>
-          <div style="display:flex; align-items:center; gap:8px;">
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
             <input type="text" id="clubSearchInput" placeholder="Filter code, name, adviser, category..." style="padding:7px 12px; border-radius:8px; border:1px solid #cbd5e1; font-size:0.82rem; min-width:260px;" oninput="filterClubMasterTable()"/>
+            <button type="button" class="card-btn" style="background:#16a34a; color:#fff; font-weight:700; display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:8px; font-size:0.82rem; border:none; cursor:pointer;" onclick="openCreateClubModal()">
+              <i class="fa-solid fa-plus-circle"></i> Create Organization
+            </button>
           </div>
         </div>
 
@@ -329,6 +334,92 @@ require_once __DIR__ . '/../shared/sidebar.php';
   </div>
 
   <div class="footer">eLearning Commons &copy; 2026</div>
+</div>
+
+<!-- Modal: Create New Organization -->
+<div class="modal-overlay" id="createClubModal">
+  <div class="modal-card" style="max-width:580px;">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-plus-circle" style="color:#16a34a;"></i> Create New Campus Organization</h3>
+      <button style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:#64748b;" onclick="closeModal('createClubModal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <form id="createClubForm" onsubmit="handleCreateClub(event)">
+      <div class="modal-body">
+        <div id="createClubModalAlert" class="admin-alert" style="display:none; margin-bottom:14px; padding:10px 14px; border-radius:8px; font-size:0.84rem; font-weight:600;"></div>
+
+        <div style="display:grid; grid-template-columns:1fr 2fr; gap:12px; margin-bottom:14px;">
+          <div class="form-group-admin" style="margin-bottom:0;">
+            <label>Org Code / Acronym <span style="color:#ef4444;">*</span></label>
+            <input type="text" name="code" id="createClubCode" required placeholder="e.g. JPCS" maxlength="20" style="text-transform:uppercase; font-weight:700;" oninput="this.value = this.value.toUpperCase().trim()"/>
+          </div>
+          <div class="form-group-admin" style="margin-bottom:0;">
+            <label>Organization Name <span style="color:#ef4444;">*</span></label>
+            <input type="text" name="name" id="createClubName" required placeholder="e.g. Junior Philippine Computer Society" maxlength="150"/>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+          <div class="form-group-admin" style="margin-bottom:0;">
+            <label>Classification Category <span style="color:#ef4444;">*</span></label>
+            <select name="category" id="createClubCategory" required onchange="handleCreateCatChange(this.value)">
+              <option value="Academic">Academic (LOC)</option>
+              <option value="Cultural">Talent &amp; Cultural (CTCE)</option>
+              <option value="Sports">Sports &amp; Athletics</option>
+              <option value="Advocacy">Advocacy &amp; Civic</option>
+              <option value="Religious">Religious &amp; Faith</option>
+            </select>
+          </div>
+          <div class="form-group-admin" style="margin-bottom:0;">
+            <label>Sub-Category / Sector</label>
+            <input type="text" name="sub_category" id="createClubSubCategory" placeholder="e.g. Academic Organization" value="Academic Organization"/>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+          <div class="form-group-admin" style="margin-bottom:0;">
+            <label>Academic Program / Scope</label>
+            <select name="program" id="createClubProgram">
+              <option value="Institutional">Institutional (Campus-Wide / All Programs)</option>
+              <?php foreach ($academic_programs as $ap): ?>
+                <option value="<?= htmlspecialchars($ap['code']) ?>"><?= htmlspecialchars($ap['code'] . ' - ' . $ap['name']) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="form-group-admin" style="margin-bottom:0;">
+            <label>Initial Charter Status <span style="color:#ef4444;">*</span></label>
+            <select name="status" id="createClubStatus" required>
+              <option value="Active">Active (Accredited &amp; Chartered)</option>
+              <option value="Pending Charter">Pending Charter (Provisional)</option>
+              <option value="Suspended">Suspended (Temporarily Frozen)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group-admin">
+          <label>Assigned Faculty Club Adviser</label>
+          <select name="adviser_user_id" id="createClubAdviser">
+            <option value="">-- No Adviser Assigned (Unassigned) --</option>
+            <?php foreach ($faculty_advisers as $fa): ?>
+              <option value="<?= (int)$fa['id'] ?>">
+                <?= htmlspecialchars($fa['first_name'] . ' ' . $fa['last_name'] . ' (' . $fa['email'] . ')') ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <div class="form-group-admin" style="margin-bottom:0;">
+          <label>Charter Mission &amp; Description</label>
+          <textarea name="description" id="createClubDescription" rows="3" placeholder="Charter statement, core purpose, student membership coverage..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="card-btn" style="background:#f1f5f9; color:#475569;" onclick="closeModal('createClubModal')">Cancel</button>
+        <button type="submit" id="createClubSubmitBtn" class="card-btn" style="background:#16a34a; color:#fff; font-weight:700;">
+          <i class="fa-solid fa-plus-circle"></i> Create Organization
+        </button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <!-- Modal: Configure Organization Master Data -->
@@ -399,6 +490,90 @@ function showAlert(msg, type) {
 
 function openModal(id) { document.getElementById(id)?.classList.add('active'); }
 function closeModal(id) { document.getElementById(id)?.classList.remove('active'); }
+
+function openCreateClubModal() {
+  const form = document.getElementById('createClubForm');
+  if (form) form.reset();
+  const alertEl = document.getElementById('createClubModalAlert');
+  if (alertEl) { alertEl.style.display = 'none'; alertEl.innerHTML = ''; }
+  const btn = document.getElementById('createClubSubmitBtn');
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-plus-circle"></i> Create Organization'; }
+  handleCreateCatChange('Academic');
+  openModal('createClubModal');
+}
+
+function handleCreateCatChange(cat) {
+  const sub = document.getElementById('createClubSubCategory');
+  if (!sub) return;
+  if (cat === 'Cultural') {
+    sub.value = 'Talent Center';
+  } else if (cat === 'Sports') {
+    sub.value = 'Sports Club';
+  } else if (cat === 'Advocacy') {
+    sub.value = 'Campus-Wide Independent Bodies';
+  } else if (cat === 'Religious') {
+    sub.value = 'Spiritual & Faith Formation';
+  } else {
+    sub.value = 'Academic Organization';
+  }
+}
+
+function handleCreateClub(e) {
+  e.preventDefault();
+  const form = e.target;
+  const btn = document.getElementById('createClubSubmitBtn');
+  const alertEl = document.getElementById('createClubModalAlert');
+  if (alertEl) { alertEl.style.display = 'none'; alertEl.innerHTML = ''; }
+
+  const origHtml = btn ? btn.innerHTML : '<i class="fa-solid fa-plus-circle"></i> Create Organization';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating...';
+  }
+
+  const fd = new FormData(form);
+  fd.append('action', 'create_club_master');
+  if (CSRF_TOKEN) fd.append('csrf_token', CSRF_TOKEN);
+
+  fetch('../shared/admin_actions.php', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(res => {
+      if (res.success) {
+        closeModal('createClubModal');
+        showAlert(res.message || 'Organization created successfully!', 'success');
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = origHtml;
+        }
+        if (alertEl) {
+          alertEl.style.display = 'block';
+          alertEl.style.background = '#fef2f2';
+          alertEl.style.color = '#991b1b';
+          alertEl.style.border = '1px solid #fecaca';
+          alertEl.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> ' + (res.message || 'Failed to create organization.');
+        } else {
+          showAlert(res.message || 'Failed to create organization.', 'error');
+        }
+      }
+    })
+    .catch(() => {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+      }
+      if (alertEl) {
+        alertEl.style.display = 'block';
+        alertEl.style.background = '#fef2f2';
+        alertEl.style.color = '#991b1b';
+        alertEl.style.border = '1px solid #fecaca';
+        alertEl.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> Network error creating organization.';
+      } else {
+        showAlert('Network error creating organization.', 'error');
+      }
+    });
+}
 
 function filterClubMasterTable() {
   const q = (document.getElementById('clubSearchInput')?.value || '').toLowerCase().trim();

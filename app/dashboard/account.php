@@ -57,15 +57,26 @@ $role = $role_labels[$sess_role] ?? 'User';
 
 $adv_club = null;
 if ($sess_role === 'club_adviser') {
-    $stmt = $conn->prepare("SELECT c.id, c.name, c.code FROM clubs c JOIN club_memberships cm ON cm.club_id = c.id WHERE cm.user_id = ? AND cm.status = 'Active' AND c.deleted_at IS NULL LIMIT 1");
+    $stmt = $conn->prepare("SELECT c.id, c.name, c.code FROM clubs c WHERE (c.adviser_user_id = ? OR c.id IN (SELECT club_id FROM club_memberships WHERE user_id = ? AND status = 'Active')) AND c.deleted_at IS NULL ORDER BY c.name ASC LIMIT 1");
     if ($stmt) {
-        $stmt->bind_param('i', $user_id);
+        $stmt->bind_param('ii', $user_id, $user_id);
         $stmt->execute();
         $res = $stmt->get_result();
         if ($res && $res->num_rows > 0) {
             $adv_club = $res->fetch_assoc();
         }
         $stmt->close();
+    }
+}
+
+$std_info = null;
+if ($sess_role === 'student') {
+    $st_stmt = $conn->prepare("SELECT student_number, course, year_level, section FROM students WHERE user_id = ? OR (first_name = ? AND last_name = ?) LIMIT 1");
+    if ($st_stmt) {
+        $st_stmt->bind_param('iss', $user_id, $_SESSION['first_name'], $_SESSION['last_name']);
+        $st_stmt->execute();
+        $std_info = $st_stmt->get_result()->fetch_assoc();
+        $st_stmt->close();
     }
 }
 
@@ -172,6 +183,8 @@ require_once __DIR__ . '/../shared/sidebar.php';
           <span class="profile-user-role">
             <?php if ($sess_role === 'club_adviser' && !empty($adv_club)): ?>
               Adviser &bull; <?= htmlspecialchars($adv_club['code']) ?>
+            <?php elseif ($sess_role === 'student' && !empty($std_info)): ?>
+              Student &bull; <?= htmlspecialchars($std_info['student_number'] ?? 'N/A') ?>
             <?php else: ?>
               <?= $role ?>
             <?php endif; ?>
@@ -183,6 +196,17 @@ require_once __DIR__ . '/../shared/sidebar.php';
               <i class="fa-solid fa-sitemap"></i>
               <span>Advising: <strong><?= htmlspecialchars($adv_club['name']) ?></strong></span>
             </div>
+            <?php elseif ($sess_role === 'student' && !empty($std_info)): ?>
+            <div class="profile-detail-item">
+              <i class="fa-solid fa-graduation-cap"></i>
+              <span><strong><?= htmlspecialchars($std_info['student_number'] ?? 'N/A') ?></strong> &bull; <?= htmlspecialchars($std_info['course'] ?? '') ?></span>
+            </div>
+            <?php if (!empty($std_info['year_level']) || !empty($std_info['section'])): ?>
+            <div class="profile-detail-item">
+              <i class="fa-solid fa-chalkboard-user"></i>
+              <span><?= htmlspecialchars($std_info['year_level'] ?? '') ?><?= (!empty($std_info['year_level']) && !empty($std_info['section'])) ? ' &bull; ' : '' ?><?= htmlspecialchars($std_info['section'] ?? '') ?></span>
+            </div>
+            <?php endif; ?>
             <?php endif; ?>
             <div class="profile-detail-item">
               <i class="fa-solid fa-envelope"></i>

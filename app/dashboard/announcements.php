@@ -37,8 +37,8 @@ if ($sess_role === 'admin') {
     $kpi_total_students = (int)$conn->query("SELECT COUNT(*) FROM users WHERE role = 'student' AND status = 'active'")->fetch_row()[0];
     $kpi_active_pub  = (int)$conn->query("SELECT COUNT(*) FROM org_announcements WHERE scope = 'Council' AND status = 'Published'")->fetch_row()[0];
 } else {
-    $kpi_total_ann   = (int)$conn->query("SELECT COUNT(*) FROM org_announcements WHERE status = 'Published'")->fetch_row()[0];
-    $kpi_urgent_cnt  = (int)$conn->query("SELECT COUNT(*) FROM org_announcements WHERE priority = 'Urgent' AND status = 'Published'")->fetch_row()[0];
+    $kpi_total_ann   = (int)$conn->query("SELECT COUNT(*) FROM org_announcements WHERE status = 'Published' AND (scope IN ('System', 'Council') OR club_id IN (SELECT club_id FROM club_memberships WHERE user_id = {$user_id} AND status = 'Active'))")->fetch_row()[0];
+    $kpi_urgent_cnt  = (int)$conn->query("SELECT COUNT(*) FROM org_announcements WHERE priority = 'Urgent' AND status = 'Published' AND (scope IN ('System', 'Council') OR club_id IN (SELECT club_id FROM club_memberships WHERE user_id = {$user_id} AND status = 'Active'))")->fetch_row()[0];
 }
 
 // ── 3. Fetch Master Announcements List ────────────────────────
@@ -81,6 +81,7 @@ if ($sess_role === 'admin') {
         LEFT JOIN clubs c ON c.id = a.club_id
         JOIN users u ON u.id = a.author_id
         WHERE a.status = 'Published'
+          AND (a.scope IN ('System', 'Council') OR a.club_id IN (SELECT club_id FROM club_memberships WHERE user_id = {$user_id} AND status = 'Active'))
         ORDER BY a.is_pinned DESC, a.created_at DESC
     ");
 }

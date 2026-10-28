@@ -353,7 +353,12 @@ if ($db_connected && $conn && !$conn->connect_error) {
         $migration_flag_file = __DIR__ . '/.migrated';
         $expected_mig_sig = md5($host . ':' . $port . '/' . $db . '_v2');
         $current_mig_sig = file_exists($migration_flag_file) ? trim((string)@file_get_contents($migration_flag_file)) : '';
-        if ($current_mig_sig !== $expected_mig_sig) {
+        $users_table_missing = false;
+        $tblChk = @$conn->query("SHOW TABLES LIKE 'users'");
+        if (!$tblChk || $tblChk->num_rows === 0) {
+            $users_table_missing = true;
+        }
+        if ($current_mig_sig !== $expected_mig_sig || $users_table_missing) {
             $migrator_path = __DIR__ . '/auto_migrator.php';
             if (file_exists($migrator_path)) {
                 try {

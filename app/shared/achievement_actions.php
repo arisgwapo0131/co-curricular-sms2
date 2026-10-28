@@ -67,7 +67,7 @@ switch ($action) {
 
     // ── LIST pending for SSC/Admin ────────────────────────────
     case 'list_pending': {
-        if (!in_array($user_role, ['ssc','admin'])) achRespond(false, 'Not authorized.');
+        if (!in_array($user_role, ['ssc','admin','super_admin'])) achRespond(false, 'Not authorized.');
         $rows = $conn->query(
             "SELECT a.id, a.title, a.competition, a.award_date, a.proof_file, a.created_at,
                     c.name AS club_name, u.first_name, u.last_name
@@ -82,7 +82,7 @@ switch ($action) {
 
     // ── SUBMIT achievement ───────────────────────────────────
     case 'submit': {
-        if (!in_array($user_role, ['student','club_adviser','ssc','admin'])) achRespond(false, 'Not authorized to submit.');
+        if (!in_array($user_role, ['student','club_adviser','ssc','admin','super_admin'])) achRespond(false, 'Not authorized to submit.');
 
         $title       = trim($_POST['title']       ?? '');
         $competition = trim($_POST['competition'] ?? '');
@@ -153,12 +153,12 @@ switch ($action) {
 
     // ── VERIFY achievement (SSC / Admin) ─────────────────────
     case 'verify': {
-        if (!in_array($user_role, ['ssc','admin'])) achRespond(false, 'Only SSC Officers can verify achievements.');
+        if (!in_array($user_role, ['ssc','admin','super_admin'])) achRespond(false, 'Only SSC Officers or Administrators can verify achievements.');
         $id = (int)($_POST['id'] ?? 0);
         if ($id <= 0) achRespond(false, 'Invalid achievement ID.');
 
         $stmt = $conn->prepare("UPDATE achievements SET status='Verified', verified_by=?, notes=? WHERE id=?");
-        $note = trim($_POST['notes'] ?? 'Verified and endorsed by SSC.');
+        $note = trim($_POST['notes'] ?? ($user_role === 'ssc' ? 'Verified and endorsed by SSC.' : 'Verified and endorsed by Administrator.'));
         $stmt->bind_param('isi', $user_id, $note, $id);
         if (!$stmt->execute()) achRespond(false, 'Failed to verify.');
         $stmt->close();
@@ -166,7 +166,7 @@ switch ($action) {
         $ach = $conn->query("SELECT submitted_by, title FROM achievements WHERE id=$id")->fetch_assoc();
         if ($ach) {
             push_notification($conn, (int)$ach['submitted_by'], 'Achievement Verified! 🏆',
-                "Your achievement \"{$ach['title']}\" has been verified and endorsed by the SSC!", 'success');
+                "Your achievement \"{$ach['title']}\" has been verified and endorsed!", 'success');
         }
         log_audit($conn, $user_id, 'achievement_verify', 'achievements', $id, "Verified #$id");
         achRespond(true, 'Achievement verified and endorsed.');
@@ -174,7 +174,7 @@ switch ($action) {
 
     // ── REJECT achievement (SSC / Admin) ─────────────────────
     case 'reject': {
-        if (!in_array($user_role, ['ssc','admin'])) achRespond(false, 'Not authorized.');
+        if (!in_array($user_role, ['ssc','admin','super_admin'])) achRespond(false, 'Not authorized.');
         $id   = (int)($_POST['id']    ?? 0);
         $note = trim($_POST['notes']  ?? 'Please provide additional documentation.');
         if ($id <= 0) achRespond(false, 'Invalid achievement ID.');
@@ -190,12 +190,12 @@ switch ($action) {
                 "Your achievement \"{$ach['title']}\" needs more info. Notes: $note", 'warning');
         }
         log_audit($conn, $user_id, 'achievement_reject', 'achievements', $id, "Rejected #$id: $note");
-        achRespond(true, 'Achievement returned for additional info.');
+        achRespond(true, 'Achievement marked as Rejected.');
     }
 
     // ── CLARIFY achievement (SSC / Admin) ────────────────────
     case 'clarify': {
-        if (!in_array($user_role, ['ssc','admin'])) achRespond(false, 'Not authorized.');
+        if (!in_array($user_role, ['ssc','admin','super_admin'])) achRespond(false, 'Not authorized.');
         $id   = (int)($_POST['id']    ?? 0);
         $note = trim($_POST['notes']  ?? '');
         if ($id <= 0) achRespond(false, 'Invalid achievement ID.');

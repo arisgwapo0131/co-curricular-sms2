@@ -273,40 +273,48 @@ if ($is_admin_view) {
     /* KPI Metrics Grid */
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
       margin-bottom: 0;
+      width: 100%;
     }
     .kpi-grid.kpi-grid-ssc {
-      grid-template-columns: repeat(6, 1fr);
-      gap: 14px;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 12px;
+      width: 100%;
     }
-    @media (max-width: 1400px) {
+    @media (max-width: 1320px) {
       .kpi-grid.kpi-grid-ssc {
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
       }
     }
-    @media (max-width: 900px) {
+    @media (max-width: 860px) {
       .kpi-grid.kpi-grid-ssc {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
       }
     }
     @media (max-width: 560px) {
       .kpi-grid.kpi-grid-ssc {
         grid-template-columns: 1fr;
+        gap: 10px;
       }
     }
     .kpi-box {
       background: #ffffff;
       border: 1px solid #e2e8f0;
-      border-radius: 14px;
-      padding: 20px 24px;
+      border-radius: 12px;
+      padding: 14px 16px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
       transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
       position: relative;
+      min-width: 0;
+      box-sizing: border-box;
+      overflow: hidden;
     }
     .kpi-box:hover {
       transform: translateY(-2px);
@@ -315,25 +323,29 @@ if ($is_admin_view) {
     }
     .kpi-top {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
-      margin-bottom: 12px;
+      gap: 8px;
+      margin-bottom: 8px;
     }
     .kpi-label {
-      font-size: 0.74rem;
+      font-size: 0.68rem;
       font-weight: 700;
       color: #64748b;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
+      line-height: 1.25;
+      min-width: 0;
+      word-break: break-word;
     }
     .kpi-icon-wrap {
-      width: 38px;
-      height: 38px;
-      border-radius: 10px;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.95rem;
+      font-size: 0.85rem;
       flex-shrink: 0;
     }
     .kpi-icon-blue    { background: #eff6ff; color: #2563eb; }
@@ -344,7 +356,7 @@ if ($is_admin_view) {
     .kpi-icon-purple  { background: #f3e8ff; color: #7e22ce; }
     
     .kpi-num {
-      font-size: 1.75rem;
+      font-size: clamp(1.15rem, 1.25vw, 1.42rem);
       font-weight: 700;
       color: #0f172a;
       line-height: 1.2;
@@ -353,27 +365,34 @@ if ($is_admin_view) {
       font-variant-numeric: tabular-nums;
       display: flex;
       align-items: baseline;
+      flex-wrap: wrap;
       gap: 2px;
       margin: 4px 0 2px;
+      word-break: break-word;
+      min-width: 0;
     }
     .kpi-currency {
-      font-size: 1.25rem;
+      font-size: 0.95rem;
       font-weight: 600;
       color: #475569;
       margin-right: 1px;
     }
     .kpi-subtext {
-      font-size: 0.78rem;
+      font-size: 0.72rem;
       color: #64748b;
       font-weight: 500;
-      margin-top: 8px;
+      margin-top: 6px;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
+      line-height: 1.3;
+      white-space: normal;
+      word-break: break-word;
     }
     .kpi-subtext i {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       opacity: 0.75;
+      flex-shrink: 0;
     }
 
     /* Ledger Table & Toolbar */
@@ -1099,11 +1118,11 @@ if ($is_admin_view) {
     }
 
     @media (max-width: 992px) {
-      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .kpi-grid:not(.kpi-grid-ssc) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .wf-pipeline { grid-template-columns: 1fr; }
     }
     @media (max-width: 576px) {
-      .kpi-grid { grid-template-columns: 1fr; }
+      .kpi-grid:not(.kpi-grid-ssc) { grid-template-columns: 1fr; }
     }
 
     /* Mobile Responsive Card Transformation */

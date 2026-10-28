@@ -1,18 +1,18 @@
 <?php
-session_start();
+// Safe session initialization
+if (session_status() === PHP_SESSION_NONE) {
+  if (!@session_start()) {
+    session_id(bin2hex(random_bytes(16)));
+    @session_start();
+  }
+}
 
-// If explicitly timed out, expired, or logged out, completely destroy existing session & cookie
+// If explicitly timed out, expired, or logged out, completely clear existing session and safely rotate ID
 if (!empty($_GET['timeout']) || !empty($_GET['expired']) || !empty($_GET['logout']) || !empty($_GET['signout'])) {
   $_SESSION = [];
-  if (ini_get('session.use_cookies')) {
-    $params = session_get_cookie_params();
-    setcookie(session_name(), '', time() - 42000,
-      $params['path'], $params['domain'],
-      $params['secure'], $params['httponly']
-    );
+  if (session_status() === PHP_SESSION_ACTIVE) {
+    @session_regenerate_id(true);
   }
-  @session_destroy();
-  session_start();
 }
 
 // Check session timeout if user was logged in
@@ -20,17 +20,11 @@ if (!empty($_SESSION['user_id'])) {
   $sess_timeout = 120; // 2 minutes
   $last_act = (int)($_SESSION['last_activity'] ?? 0);
   if ($last_act <= 0 || (time() - $last_act) > $sess_timeout) {
-    // Expired or stale session - cleanly destroy without looping
+    // Expired or stale session - cleanly clear without destroying and reopening file handles
     $_SESSION = [];
-    if (ini_get('session.use_cookies')) {
-      $params = session_get_cookie_params();
-      setcookie(session_name(), '', time() - 42000,
-        $params['path'], $params['domain'],
-        $params['secure'], $params['httponly']
-      );
+    if (session_status() === PHP_SESSION_ACTIVE) {
+      @session_regenerate_id(true);
     }
-    @session_destroy();
-    session_start();
   } else {
     // Still active and valid session
     header('Location: ../dashboard/dashboard.php');
