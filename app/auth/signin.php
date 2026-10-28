@@ -32,16 +32,8 @@ if (!empty($_SESSION['user_id'])) {
   }
 }
 
-// Check if user has an active pending Multi-Factor Authentication challenge (strictly 'super_admin', 'ssc', 'admin' or 'staff' roles)
+// Check if user has an active pending Multi-Factor Authentication challenge
 $mfa_pending = !empty($_SESSION['mfa_pending']) && !empty($_SESSION['mfa_user_id']);
-if ($mfa_pending && !in_array($_SESSION['mfa_role'] ?? '', ['super_admin', 'admin', 'ssc', 'staff'], true)) {
-  unset(
-    $_SESSION['mfa_pending'], $_SESSION['mfa_user_id'], $_SESSION['mfa_username'],
-    $_SESSION['mfa_email'], $_SESSION['mfa_name'], $_SESSION['mfa_role'],
-    $_SESSION['mfa_profile_pic'], $_SESSION['mfa_created_at']
-  );
-  $mfa_pending = false;
-}
 
 // Load database engine to verify connectivity & handle pending MFA challenges
 require_once __DIR__ . '/../shared/db.php';
@@ -169,6 +161,15 @@ if ($mfa_pending && !empty($conn) && !empty($db_connected)) {
 
           <div class="auth-error" id="mfaError" style="display:none; margin-bottom:14px; width:100%;"></div>
           <div class="auth-success" id="mfaSuccess" style="display:none; background:#ecfdf5; border:1px solid #10b981; color:#065f46; padding:10px 14px; border-radius:8px; font-size:0.84rem; font-weight:600; margin-bottom:14px; width:100%; text-align:center;"></div>
+
+          <!-- Direct / Fallback Security OTP Banner (Displays when simulated delivery or preview is permitted) -->
+          <div id="mfaDevBanner" style="<?= (!empty($mfa_dev_code_preload) ? 'display:block;' : 'display:none;') ?>; background:#f0fdf4; border:1.5px solid #22c55e; border-radius:10px; padding:12px 14px; margin-bottom:16px; text-align:center; width:100%; box-sizing:border-box;">
+            <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; font-weight:800; color:#15803d; margin-bottom:4px; display:flex; align-items:center; justify-content:center; gap:6px;">
+              <i class="fa-solid fa-shield-halved"></i> Security Verification Code
+            </div>
+            <div style="font-size:1.55rem; font-weight:800; letter-spacing:4px; color:#166534; font-family:monospace; user-select:all; cursor:pointer;" id="mfaDevCodeVal" title="Click to auto-fill"><?= htmlspecialchars($mfa_dev_code_preload ?? '') ?></div>
+            <div style="font-size:0.72rem; color:#15803d; margin-top:4px;">Click the code to auto-fill or enter the 6 digits below</div>
+          </div>
 
           <form id="mfaForm" style="width:100%" onsubmit="handleMfaVerify(event)">
             <!-- 6 Discrete OTP Input Boxes -->
@@ -391,6 +392,23 @@ if ($mfa_pending && !empty($conn) && !empty($db_connected)) {
         box.classList.remove('filled');
       });
       if (otpBoxes[0]) otpBoxes[0].focus();
+    }
+
+    function fillOtp(code) {
+      if (!code) return;
+      const digits = code.toString().replace(/[^0-9]/g, '').slice(0, 6).split('');
+      for (let i = 0; i < otpBoxes.length; i++) {
+        if (i < digits.length) {
+          otpBoxes[i].value = digits[i];
+          otpBoxes[i].classList.add('filled');
+        } else {
+          otpBoxes[i].value = '';
+          otpBoxes[i].classList.remove('filled');
+        }
+      }
+      if (digits.length === 6 && otpBoxes[5]) {
+        otpBoxes[5].focus();
+      }
     }
 
     function getEnteredOtp() {

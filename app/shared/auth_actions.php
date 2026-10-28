@@ -151,22 +151,19 @@ try {
         }
 
         // Multi-Factor Authentication Check
-        // Enabled for administrative & student leadership roles: 'super_admin', 'ssc', 'admin', and 'staff'
-        $mfa_enabled = false;
-        if (in_array($user['role'], ['super_admin', 'admin', 'ssc', 'staff'], true)) {
-            $mfa_enabled = true; // Default active for administrative roles unless explicitly disabled in system_settings
-            try {
-                $mfa_setting_res = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'mfa_enabled' LIMIT 1");
-                if ($mfa_setting_res && $mfa_row = $mfa_setting_res->fetch_assoc()) {
-                    $mfa_enabled = ($mfa_row['setting_value'] !== '0' && strtolower($mfa_row['setting_value']) !== 'false');
-                }
-            } catch (Throwable $e) {}
-
-            // Environment variable override (e.g. MFA_ENABLED=0 in Railway)
-            $env_mfa = getenv('MFA_ENABLED');
-            if ($env_mfa !== false) {
-                $mfa_enabled = ($env_mfa === '1' || strtolower($env_mfa) === 'true' || strtolower($env_mfa) === 'on');
+        // Enforced for system security when mfa_enabled is active in system_settings
+        $mfa_enabled = true; // Default active for security unless explicitly disabled in system_settings
+        try {
+            $mfa_setting_res = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'mfa_enabled' LIMIT 1");
+            if ($mfa_setting_res && $mfa_row = $mfa_setting_res->fetch_assoc()) {
+                $mfa_enabled = ($mfa_row['setting_value'] !== '0' && strtolower($mfa_row['setting_value']) !== 'false');
             }
+        } catch (Throwable $e) {}
+
+        // Environment variable override (e.g. MFA_ENABLED=0 in Railway)
+        $env_mfa = getenv('MFA_ENABLED');
+        if ($env_mfa !== false) {
+            $mfa_enabled = ($env_mfa === '1' || strtolower($env_mfa) === 'true' || strtolower($env_mfa) === 'on');
         }
 
         if ($mfa_enabled) {

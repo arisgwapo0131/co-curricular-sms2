@@ -340,6 +340,9 @@ $test_user = $conn->query("SELECT id, email, username FROM users WHERE username 
 $test_uid = (int)($test_user['id'] ?? 1);
 $test_email = $test_user['email'] ?? 'bsit@student.bcp.edu.ph';
 
+// Clear previous codes for test user to avoid cooldown conflicts
+$conn->query("DELETE FROM mfa_codes WHERE user_id = $test_uid");
+
 $mfaGen = send_mfa_verification_code($conn, $test_uid, $test_email, 'Juan Santos', 'login');
 assert_test("11.2 Verification code generated and dispatched via mail helper", $mfaGen['success'] === true && strlen($mfaGen['code']) === 6);
 

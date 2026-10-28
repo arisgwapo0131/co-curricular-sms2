@@ -144,7 +144,7 @@ function send_via_socket_smtp(
     string $html_body,
     string $text_body = ''
 ): array {
-    $timeout = 8; // Sufficient timeout for external Gmail handshake
+    $timeout = 4; // Fast handshake timeout to avoid cloud reverse proxy gateway timeouts
     $prefix = ($crypto === 'ssl') ? 'ssl://' : '';
     $context = stream_context_create([
         'ssl' => [

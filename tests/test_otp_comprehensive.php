@@ -31,13 +31,19 @@ assert_test("1.1 MFA enabled in system settings", ($settings['mfa_enabled'] ?? '
 assert_test("1.2 MFA expiry set to 5 minutes", ($settings['mfa_expiry_minutes'] ?? '') === '5');
 assert_test("1.3 MFA resend cooldown set to 60 seconds", ($settings['mfa_resend_cooldown'] ?? '') === '60');
 
-// 2. Test Student Direct Sign In (Role Isolation: Student requires NO MFA)
-$std = $conn->query("SELECT id, username, email, role FROM users WHERE role = 'student' LIMIT 1")->fetch_assoc();
+// 2. Test Student MFA Code Issuance
+$std = $conn->query("SELECT id, username, email, first_name, last_name, role FROM users WHERE role = 'student' LIMIT 1")->fetch_assoc();
 assert_test("2.1 Student account found ({$std['username']})", !empty($std));
+$conn->query("DELETE FROM mfa_codes WHERE user_id = " . (int)$std['id']);
+$mfa_std = issue_mfa_code($conn, (int)$std['id'], $std['email'], ($std['first_name'] ?? '') . ' ' . ($std['last_name'] ?? ''), 'login');
+assert_test("2.2 Student MFA 6-digit code issued", $mfa_std['success'] && strlen($mfa_std['code']) === 6);
 
-// 3. Test Adviser Direct Sign In (Role Isolation: Adviser requires NO MFA)
-$adv = $conn->query("SELECT id, username, email, role FROM users WHERE role = 'club_adviser' LIMIT 1")->fetch_assoc();
+// 3. Test Adviser MFA Code Issuance
+$adv = $conn->query("SELECT id, username, email, first_name, last_name, role FROM users WHERE role = 'club_adviser' LIMIT 1")->fetch_assoc();
 assert_test("3.1 Adviser account found ({$adv['username']})", !empty($adv));
+$conn->query("DELETE FROM mfa_codes WHERE user_id = " . (int)$adv['id']);
+$mfa_adv = issue_mfa_code($conn, (int)$adv['id'], $adv['email'], ($adv['first_name'] ?? '') . ' ' . ($adv['last_name'] ?? ''), 'login');
+assert_test("3.2 Adviser MFA 6-digit code issued", $mfa_adv['success'] && strlen($mfa_adv['code']) === 6);
 
 // 4. Test SSC Officer MFA Code Issuance
 $ssc = $conn->query("SELECT id, username, email, first_name, last_name, role FROM users WHERE role = 'ssc' LIMIT 1")->fetch_assoc();
