@@ -30,5 +30,7 @@ app/shared/.db_host_cache.json
 database/backup_*.sql
 ~$*
 cloudflared.exe
+app/uploads/*
+!app/uploads/.gitkeep
 
 

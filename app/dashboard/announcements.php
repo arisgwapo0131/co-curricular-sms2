@@ -36,6 +36,11 @@ if ($sess_role === 'admin') {
     $kpi_assemblies  = (int)$conn->query("SELECT COUNT(*) FROM org_announcements WHERE scope = 'Council' AND category IN ('Council Assembly', 'Governance & Resolutions')")->fetch_row()[0];
     $kpi_total_students = (int)$conn->query("SELECT COUNT(*) FROM users WHERE role = 'student' AND status = 'active'")->fetch_row()[0];
     $kpi_active_pub  = (int)$conn->query("SELECT COUNT(*) FROM org_announcements WHERE scope = 'Council' AND status = 'Published'")->fetch_row()[0];
+} elseif ($sess_role === 'club_adviser') {
+    $cids = array_map('intval', array_column($all_clubs, 'id'));
+    $cid_list = !empty($cids) ? implode(',', $cids) : '0';
+    $kpi_total_ann  = (int)$conn->query("SELECT COUNT(*) FROM org_announcements WHERE status = 'Published' AND (scope IN ('System', 'Council') OR club_id IN ($cid_list) OR author_id = {$user_id})")->fetch_row()[0];
+    $kpi_urgent_cnt = (int)$conn->query("SELECT COUNT(*) FROM org_announcements WHERE priority = 'Urgent' AND status = 'Published' AND (scope IN ('System', 'Council') OR club_id IN ($cid_list) OR author_id = {$user_id})")->fetch_row()[0];
 } else {
     $kpi_total_ann   = (int)$conn->query("SELECT COUNT(*) FROM org_announcements WHERE status = 'Published' AND (scope IN ('System', 'Council') OR club_id IN (SELECT club_id FROM club_memberships WHERE user_id = {$user_id} AND status = 'Active'))")->fetch_row()[0];
     $kpi_urgent_cnt  = (int)$conn->query("SELECT COUNT(*) FROM org_announcements WHERE priority = 'Urgent' AND status = 'Published' AND (scope IN ('System', 'Council') OR club_id IN (SELECT club_id FROM club_memberships WHERE user_id = {$user_id} AND status = 'Active'))")->fetch_row()[0];
@@ -63,14 +68,15 @@ if ($sess_role === 'admin') {
         ORDER BY a.is_pinned DESC, a.created_at DESC
     ");
 } elseif ($sess_role === 'club_adviser') {
-    $cid = $adviser_club ? (int)$adviser_club['id'] : 0;
+    $cids = array_map('intval', array_column($all_clubs, 'id'));
+    $cid_list = !empty($cids) ? implode(',', $cids) : '0';
     $r_ann = $conn->query("
         SELECT a.*, c.name AS club_name, c.code AS club_code,
                u.first_name, u.last_name, u.role AS author_role
         FROM org_announcements a
         LEFT JOIN clubs c ON c.id = a.club_id
         JOIN users u ON u.id = a.author_id
-        WHERE a.scope IN ('System', 'Council') OR a.club_id = {$cid} OR a.author_id = {$user_id}
+        WHERE a.scope IN ('System', 'Council') OR a.club_id IN ($cid_list) OR a.author_id = {$user_id}
         ORDER BY a.is_pinned DESC, a.created_at DESC
     ");
 } else {
@@ -927,6 +933,7 @@ if ($res_tpl) {
       </div>
 
       <form id="annForm" onsubmit="handleAnnouncementSubmit(event)">
+        <?= csrf_field() ?>
         <input type="hidden" name="id" id="annFormId" value="0" />
 
         <!-- Scope & Pre-fill from template (Admin Only) -->
@@ -1094,6 +1101,7 @@ if ($res_tpl) {
         </div>
 
         <form id="templateForm" onsubmit="handleTemplateSubmit(event)">
+          <?= csrf_field() ?>
           <input type="hidden" name="id" id="tplFormId" value="0" />
 
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
@@ -1193,6 +1201,8 @@ if ($res_tpl) {
     }
 
     // ── Modals Handling ──
+    const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
     function openModal(id) {
       const el = document.getElementById(id);
       if (el) el.style.display = 'flex';
@@ -1297,6 +1307,7 @@ if ($res_tpl) {
       const fd = new FormData(form);
       const isEdit = parseInt(document.getElementById('annFormId').value) > 0;
       fd.append('action', isEdit ? 'update' : 'create');
+      if (!fd.has('csrf_token') && CSRF_TOKEN) fd.append('csrf_token', CSRF_TOKEN);
 
       fetch('../shared/announcement_actions.php', { method: 'POST', body: fd })
         .then(r => r.json())
@@ -1317,6 +1328,7 @@ if ($res_tpl) {
       const fd = new FormData();
       fd.append('action', 'toggle_pin');
       fd.append('id', id);
+      if (CSRF_TOKEN) fd.append('csrf_token', CSRF_TOKEN);
 
       fetch('../shared/announcement_actions.php', { method: 'POST', body: fd })
         .then(r => r.json())
@@ -1336,6 +1348,7 @@ if ($res_tpl) {
       fd.append('action', 'toggle_status');
       fd.append('id', id);
       fd.append('status', newStatus);
+      if (CSRF_TOKEN) fd.append('csrf_token', CSRF_TOKEN);
 
       fetch('../shared/announcement_actions.php', { method: 'POST', body: fd })
         .then(r => r.json())
@@ -1361,6 +1374,7 @@ if ($res_tpl) {
       const fd = new FormData();
       fd.append('action', 'delete');
       fd.append('id', id);
+      if (CSRF_TOKEN) fd.append('csrf_token', CSRF_TOKEN);
 
       fetch('../shared/announcement_actions.php', { method: 'POST', body: fd })
         .then(r => r.json())
@@ -1403,6 +1417,7 @@ if ($res_tpl) {
       const form = document.getElementById('templateForm');
       const fd = new FormData(form);
       fd.append('action', 'save_template');
+      if (!fd.has('csrf_token') && CSRF_TOKEN) fd.append('csrf_token', CSRF_TOKEN);
 
       fetch('../shared/announcement_actions.php', { method: 'POST', body: fd })
         .then(r => r.json())
@@ -1429,6 +1444,7 @@ if ($res_tpl) {
       const fd = new FormData();
       fd.append('action', 'delete_template');
       fd.append('id', id);
+      if (CSRF_TOKEN) fd.append('csrf_token', CSRF_TOKEN);
 
       fetch('../shared/announcement_actions.php', { method: 'POST', body: fd })
         .then(r => r.json())

@@ -35,8 +35,8 @@ if (file_exists($envFile)) {
     }
 }
 
-// 2. Parse DATABASE_URL / MYSQL_URL / MYSQL_PUBLIC_URL if provided by Railway or cloud platforms
-$db_url = getenv('MYSQL_URL') ?: (getenv('MYSQL_PUBLIC_URL') ?: (getenv('DATABASE_URL') ?: (getenv('CLEARDB_DATABASE_URL') ?: getenv('JAWSDB_URL'))));
+// 2. Parse DATABASE_URL / MYSQL_URL / MYSQL_PRIVATE_URL / MYSQL_PUBLIC_URL if provided by Railway or cloud platforms
+$db_url = getenv('MYSQL_URL') ?: (getenv('MYSQL_PRIVATE_URL') ?: (getenv('MYSQL_PUBLIC_URL') ?: (getenv('DATABASE_URL') ?: (getenv('CLEARDB_DATABASE_URL') ?: getenv('JAWSDB_URL')))));
 
 // Detect Railway environment
 $is_railway = (bool)(
@@ -74,12 +74,10 @@ if ($db_url && strpos($db_url, '://') !== false) {
         }
         if (!empty($parsed_url['path'])) {
             $d_dec = ltrim($parsed_url['path'], '/');
-            // On Railway or cloud, if path is 'railway' or empty, use 'sms_db'
-            if ($is_railway || $d_dec === 'railway' || $d_dec === 'test' || $d_dec === '') {
-                $d_dec = 'sms_db';
+            if (!empty($d_dec) && $d_dec !== 'test') {
+                putenv('DB_NAME=' . $d_dec);
+                $_ENV['DB_NAME'] = $d_dec;
             }
-            putenv('DB_NAME=' . $d_dec);
-            $_ENV['DB_NAME'] = $d_dec;
         }
     }
 }
@@ -95,13 +93,15 @@ if ($pass === false || $pass === null) {
 if ($pass === false || $pass === null) {
     $pass = getenv('MARIADB_PASSWORD') ?: (getenv('DB_PASSWORD') ?: (getenv('MYSQL_PASSWORD') ?: (getenv('DATABASE_PASSWORD') ?: '')));
 }
-$db = getenv('DB_NAME') ?: (getenv('MYSQLDATABASE') ?: (getenv('MARIADB_DATABASE') ?: (getenv('DB_DATABASE') ?: (getenv('MYSQL_DATABASE') ?: (getenv('DATABASE_NAME') ?: 'sms_db')))));
 
-// CRITICAL: Always prioritize and enforce 'sms_db' on Railway & Cloud deployments
-if ($is_railway || empty($db) || $db === 'railway' || $db === 'test') {
-    $db = 'sms_db';
-    putenv('DB_NAME=sms_db');
-    $_ENV['DB_NAME'] = 'sms_db';
+$explicit_db = getenv('DB_NAME');
+if (!empty($explicit_db)) {
+    $db = $explicit_db;
+} else {
+    $db = getenv('MYSQLDATABASE') ?: (getenv('MARIADB_DATABASE') ?: (getenv('DB_DATABASE') ?: (getenv('MYSQL_DATABASE') ?: (getenv('DATABASE_NAME') ?: 'sms_db'))));
+    if (empty($db) || $db === 'test') {
+        $db = 'sms_db';
+    }
 }
 
 // Check session override if configured via web setup
@@ -212,14 +212,18 @@ if (!$conn) {
 
     // 1. If Railway or Cloud environment variables are present, prioritize them FIRST!
     if ($has_cloud_env || $is_railway) {
+        $db_targets = array_unique(array_filter([$db, 'sms_db', 'railway']));
+
         if ($host && !in_array($host, ['127.0.0.1', 'localhost'], true)) {
-            $connection_profiles[] = [
-                'host' => $host,
-                'port' => $port,
-                'user' => $user,
-                'pass' => $pass,
-                'db'   => 'sms_db'
-            ];
+            foreach ($db_targets as $t_db) {
+                $connection_profiles[] = [
+                    'host' => $host,
+                    'port' => $port,
+                    'user' => $user,
+                    'pass' => $pass,
+                    'db'   => $t_db
+                ];
+            }
         }
 
         // Railway private networking DNS hostnames
@@ -230,13 +234,15 @@ if (!$conn) {
             'db.railway.internal'
         ];
         foreach ($railway_private_hosts as $rph) {
-            $connection_profiles[] = [
-                'host' => $rph,
-                'port' => $port ?: 3306,
-                'user' => $user ?: 'root',
-                'pass' => $pass ?: '',
-                'db'   => 'sms_db'
-            ];
+            foreach ($db_targets as $t_db) {
+                $connection_profiles[] = [
+                    'host' => $rph,
+                    'port' => $port ?: 3306,
+                    'user' => $user ?: 'root',
+                    'pass' => $pass ?: '',
+                    'db'   => $t_db
+                ];
+            }
         }
 
         // Also try MYSQL_PUBLIC_URL if internal host is still warming up
@@ -244,13 +250,15 @@ if (!$conn) {
         if ($pub_url && strpos($pub_url, '://') !== false) {
             $pu = parse_url($pub_url);
             if (!empty($pu['host'])) {
-                $connection_profiles[] = [
-                    'host' => $pu['host'],
-                    'port' => (int)($pu['port'] ?? 3306),
-                    'user' => !empty($pu['user']) ? rawurldecode($pu['user']) : $user,
-                    'pass' => isset($pu['pass']) ? rawurldecode($pu['pass']) : $pass,
-                    'db'   => 'sms_db'
-                ];
+                foreach ($db_targets as $t_db) {
+                    $connection_profiles[] = [
+                        'host' => $pu['host'],
+                        'port' => (int)($pu['port'] ?? 3306),
+                        'user' => !empty($pu['user']) ? rawurldecode($pu['user']) : $user,
+                        'pass' => isset($pu['pass']) ? rawurldecode($pu['pass']) : $pass,
+                        'db'   => $t_db
+                    ];
+                }
             }
         }
     }

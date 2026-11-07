@@ -25,12 +25,30 @@ $action    = $_REQUEST['action'] ?? '';
 
 // Helper: Get adviser handled club ID
 function getAdviserClubId($conn, $user_id) {
+    if (function_exists('get_user_assigned_clubs')) {
+        $assigned = get_user_assigned_clubs($conn, $user_id, 'club_adviser');
+        if (!empty($assigned)) {
+            return (int)$assigned[0]['id'];
+        }
+    }
+    $adv_stmt = $conn->prepare("SELECT id FROM clubs WHERE adviser_user_id = ? AND status = 'Active' LIMIT 1");
+    if ($adv_stmt) {
+        $adv_stmt->bind_param('i', $user_id);
+        $adv_stmt->execute();
+        $adv_res = $adv_stmt->get_result()->fetch_assoc();
+        $adv_stmt->close();
+        if ($adv_res) return (int)$adv_res['id'];
+    }
     $stmt = $conn->prepare("SELECT club_id FROM club_memberships WHERE user_id = ? AND status = 'Active' LIMIT 1");
-    $stmt->bind_param('i', $user_id);
-    $stmt->execute();
-    $res = $stmt->get_result();
-    if ($res && $row = $res->fetch_assoc()) {
-        return (int)$row['club_id'];
+    if ($stmt) {
+        $stmt->bind_param('i', $user_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        if ($res && $row = $res->fetch_assoc()) {
+            $stmt->close();
+            return (int)$row['club_id'];
+        }
+        $stmt->close();
     }
     // Match by username prefix (e.g. cssec.adviser -> CSSEC)
     $sess_uname = $_SESSION['username'] ?? '';
@@ -42,6 +60,7 @@ function getAdviserClubId($conn, $user_id) {
             $c_stmt->execute();
             $c_res = $c_stmt->get_result();
             if ($c_res && $row = $c_res->fetch_assoc()) {
+                $c_stmt->close();
                 return (int)$row['id'];
             }
             $c_stmt->close();
@@ -220,7 +239,15 @@ if ($action === 'create_election') {
     }
 
     if ($sess_role === 'club_adviser') {
-        $club_id = getAdviserClubId($conn, $user_id);
+        $assigned = get_user_assigned_clubs($conn, $user_id, $sess_role);
+        $assigned_ids = array_map('intval', array_column($assigned, 'id'));
+        if ($club_id > 0 && in_array($club_id, $assigned_ids, true)) {
+            // Keep submitted club_id
+        } elseif (!empty($assigned_ids)) {
+            $club_id = $assigned_ids[0];
+        } else {
+            $club_id = getAdviserClubId($conn, $user_id);
+        }
         if ($club_id <= 0) {
             echo json_encode(['success' => false, 'message' => 'No active organization found assigned to your adviser account.']);
             exit;
@@ -388,8 +415,7 @@ if ($action === 'add_candidate') {
 
     // Verify Adviser scoping
     if ($sess_role === 'club_adviser') {
-        $my_club = getAdviserClubId($conn, $user_id);
-        if ($el_club_id !== $my_club) {
+        if (!verify_club_adviser_scope($conn, $el_club_id, $user_id)) {
             echo json_encode(['success' => false, 'message' => 'You can only add candidates to elections of your handled organization.']);
             exit;
         }
@@ -915,8 +941,7 @@ if ($action === 'announce_officers') {
 
     // Verify Adviser scoping
     if ($sess_role === 'club_adviser') {
-        $my_club = getAdviserClubId($conn, $user_id);
-        if ($my_club !== (int)$election['club_id']) {
+        if (!verify_club_adviser_scope($conn, (int)$election['club_id'], $user_id)) {
             echo json_encode(['success' => false, 'message' => 'You can only announce elected officers for your handled organization.']);
             exit;
         }

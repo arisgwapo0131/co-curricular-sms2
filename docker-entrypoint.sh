@@ -2,7 +2,7 @@
 set -e
 
 # ============================================================
-# Docker Entrypoint for HostForge & Container Environments
+# Docker Entrypoint for Railway & Container Environments
 # ============================================================
 
 # 1. Resolve PORT from environment variable (default to 80 if unset)
@@ -22,11 +22,14 @@ EOF
 # If PORT is not 80, also listen on 80 for internal Docker health checks
 if [ "${PORT}" != "80" ]; then
     echo "Listen 80" >> /etc/apache2/ports.conf
+    VHOST_PORTS="*:${PORT} *:80"
+else
+    VHOST_PORTS="*:80"
 fi
 
 # Configure VirtualHost to accept connections on any matching port
 cat <<EOF > /etc/apache2/sites-available/000-default.conf
-<VirtualHost *:${PORT} *:80>
+<VirtualHost ${VHOST_PORTS}>
     ServerAdmin webmaster@localhost
     DocumentRoot /var/www/html
 

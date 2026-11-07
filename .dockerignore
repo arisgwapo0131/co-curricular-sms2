@@ -6,7 +6,8 @@
 .env.*
 !.env.example
 node_modules
-vendor
+/vendor
+!app/vendor/**
 tests
 scratch
 *.lock
@@ -14,8 +15,8 @@ scratch
 *.tmp
 cloudflared.exe
 verify_governance.php
+test_*.php
 app/shared/.db_host_cache.json
 app/shared/.migrated
 app/shared/install.lock
 database/backup_*.sql
-

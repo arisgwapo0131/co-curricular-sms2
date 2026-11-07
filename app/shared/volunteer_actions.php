@@ -262,17 +262,7 @@ if ($action === 'verify_volunteer') {
 
     // 2. Strict Role & Multi-Tenant Club Adviser Validation
     if ($sess_role === 'club_adviser') {
-        $adv_chk = $conn->prepare("
-            SELECT id FROM club_memberships 
-            WHERE user_id = ? AND club_id = ? AND status = 'Active' 
-            LIMIT 1
-        ");
-        $adv_chk->bind_param('ii', $user_id, $log['club_id']);
-        $adv_chk->execute();
-        $is_adviser = $adv_chk->get_result()->fetch_assoc();
-        $adv_chk->close();
-
-        if (!$is_adviser) {
+        if (!verify_club_adviser_scope($conn, (int)$log['club_id'], $user_id)) {
             echo json_encode(['success' => false, 'message' => 'Security Error: You are only authorized to verify volunteer hours for your assigned organization.']);
             exit;
         }
@@ -423,13 +413,16 @@ if ($action === 'create_opportunity') {
 
     // If adviser, lock club_id to adviser's club
     if ($sess_role === 'club_adviser') {
-        $adv_stmt = $conn->prepare("SELECT club_id FROM club_memberships WHERE user_id = ? AND status = 'Active' LIMIT 1");
-        $adv_stmt->bind_param('i', $user_id);
-        $adv_stmt->execute();
-        $adv_res = $adv_stmt->get_result()->fetch_assoc();
-        $adv_stmt->close();
-        if ($adv_res) {
-            $club_id = (int)$adv_res['club_id'];
+        $assigned_clubs = get_user_assigned_clubs($conn, $user_id, $sess_role);
+        $assigned_ids = array_map('intval', array_column($assigned_clubs, 'id'));
+        if (empty($assigned_ids)) {
+            echo json_encode(['success' => false, 'message' => 'You do not have an active club assignment to create opportunities.']);
+            exit;
+        }
+        if ($club_id > 0 && in_array($club_id, $assigned_ids, true)) {
+            // keep valid submitted club_id
+        } else {
+            $club_id = (int)$assigned_ids[0];
         }
     }
 

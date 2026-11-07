@@ -69,24 +69,10 @@ switch ($action) {
         $params = [];
         $types  = '';
         if ($user_role === 'club_adviser') {
-            $c_stmt = $conn->prepare("SELECT id FROM clubs WHERE adviser_user_id = ? LIMIT 1");
-            $c_stmt->bind_param('i', $user_id);
-            $c_stmt->execute();
-            $c_res = $c_stmt->get_result()->fetch_assoc();
-            $c_stmt->close();
-            $club_id = $c_res['id'] ?? 0;
-            if (!$club_id) {
-                $cm = $conn->prepare("SELECT club_id FROM club_memberships WHERE user_id=? AND role IN ('Adviser','adviser','Club Adviser') AND status='Active' LIMIT 1");
-                $cm->bind_param('i', $user_id);
-                $cm->execute();
-                $cm->bind_result($club_id);
-                $cm->fetch();
-                $cm->close();
-            }
-            if (!empty($club_id)) {
-                $club_filter = 'AND cm.club_id = ?';
-                $params[] = (int)$club_id;
-                $types .= 'i';
+            $assigned_clubs = get_user_assigned_clubs($conn, $user_id, $user_role);
+            $assigned_ids = array_map('intval', array_column($assigned_clubs, 'id'));
+            if (!empty($assigned_ids)) {
+                $club_filter = 'AND cm.club_id IN (' . implode(',', $assigned_ids) . ')';
             } else {
                 $club_filter = 'AND 1=0';
             }
@@ -636,24 +622,14 @@ switch ($action) {
 
         // Scope check: If adviser, verify member belongs to adviser's club
         if ($user_role === 'club_adviser') {
-            $sess_user = $_SESSION['username'] ?? '';
-            $sess_last = $_SESSION['last_name'] ?? '';
-            $chk_adv = $conn->prepare("
-                SELECT cm.id FROM club_memberships cm 
-                JOIN clubs c ON c.id = cm.club_id
-                WHERE cm.id = ? 
-                  AND (c.id IN (SELECT club_id FROM club_memberships WHERE user_id=? AND status='Active') 
-                   OR c.code = UPPER(SUBSTRING_INDEX(?, '.', 1))
-                   OR (? != '' AND c.adviser_name LIKE CONCAT('%', ?, '%')))
-                LIMIT 1
-            ");
-            $chk_adv->bind_param('iisss', $id, $user_id, $sess_user, $sess_last, $sess_last);
+            $chk_adv = $conn->prepare("SELECT club_id FROM club_memberships WHERE id = ? LIMIT 1");
+            $chk_adv->bind_param('i', $id);
             $chk_adv->execute();
-            if (!$chk_adv->get_result()->fetch_assoc()) {
-                $chk_adv->close();
+            $cm_row = $chk_adv->get_result()->fetch_assoc();
+            $chk_adv->close();
+            if (!$cm_row || !verify_club_adviser_scope($conn, (int)$cm_row['club_id'], $user_id)) {
                 rRespond(false, 'Unauthorized: You can only remove members from your assigned organization.');
             }
-            $chk_adv->close();
         }
 
         // Fetch membership details to notify & audit

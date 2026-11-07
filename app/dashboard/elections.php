@@ -37,10 +37,9 @@ $params = [];
 $types = "";
 
 if ($sess_role === 'club_adviser') {
-    if ($adviser_club) {
-        $where_sql = "WHERE e.club_id = ?";
-        $params = [$adviser_club['id']];
-        $types = "i";
+    if (!empty($adv_clubs)) {
+        $cids = array_map('intval', array_column($adv_clubs, 'id'));
+        $where_sql = "WHERE e.club_id IN (" . implode(',', $cids) . ")";
     } else {
         $where_sql = "WHERE 1=0";
     }
@@ -207,10 +206,9 @@ $past_params = [];
 $past_types = "";
 
 if ($sess_role === 'club_adviser') {
-    if ($adviser_club) {
-        $past_where .= " AND e.club_id = ?";
-        $past_params = [$adviser_club['id']];
-        $past_types = "i";
+    if (!empty($adv_clubs)) {
+        $cids = array_map('intval', array_column($adv_clubs, 'id'));
+        $past_where .= " AND e.club_id IN (" . implode(',', $cids) . ")";
     } else {
         $past_where .= " AND 1=0";
     }

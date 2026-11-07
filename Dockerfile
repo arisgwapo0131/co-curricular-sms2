@@ -19,10 +19,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-configure intl \
     && docker-php-ext-install -j$(nproc) mysqli pdo pdo_mysql gd zip bcmath opcache mbstring exif intl \
-    && a2enmod rewrite headers deflate expires \
+    && a2enmod rewrite headers deflate expires remoteip \
     && sed -ri -e 's!AllowOverride None!AllowOverride All!g' /etc/apache2/apache2.conf \
     && echo "ServerName localhost" > /etc/apache2/conf-available/servername.conf \
     && a2enconf servername \
+    && { \
+        echo 'RemoteIPHeader X-Forwarded-For'; \
+        echo 'RemoteIPTrustedProxy 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10 127.0.0.1'; \
+        echo 'SetEnvIf X-Forwarded-Proto "^https$" HTTPS=on'; \
+    } > /etc/apache2/conf-available/remoteip.conf \
+    && a2enconf remoteip \
     && { \
         echo '<Directory /var/www/html>'; \
         echo '    Options -Indexes +FollowSymLinks'; \
@@ -52,7 +58,7 @@ RUN { \
 WORKDIR /var/www/html
 
 # Force cache invalidation so Railway & container platforms build the latest code
-ARG BUILD_VERSION=20261018_1545_railway_smsdb
+ARG BUILD_VERSION=20261107_1625_railway_production
 ENV BUILD_VERSION=${BUILD_VERSION}
 
 # Copy application files

@@ -43,11 +43,12 @@ if ($user_role === 'club_adviser') {
         $sess_user = $_SESSION['username'] ?? '';
         $cm = $conn->prepare("
             SELECT id, name, code FROM clubs
-            WHERE (id IN (SELECT club_id FROM club_memberships WHERE user_id=? AND status='Active')
+            WHERE (adviser_user_id = ?
+               OR id IN (SELECT club_id FROM club_memberships WHERE user_id=? AND status='Active')
                OR code=UPPER(SUBSTRING_INDEX(?, '.', 1)))
               AND status='Active' LIMIT 1
         ");
-        $cm->bind_param('is', $user_id, $sess_user);
+        $cm->bind_param('iis', $user_id, $user_id, $sess_user);
         $cm->execute();
         $res = $cm->get_result();
         if ($row = $res->fetch_assoc()) {

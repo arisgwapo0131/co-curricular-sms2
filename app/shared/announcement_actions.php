@@ -58,7 +58,11 @@ function dispatchAnnouncementNotifications(mysqli $conn, int $author_id, string 
             while ($r = $q->fetch_assoc()) { $recipient_ids[] = (int)$r['id']; }
         }
     } elseif (str_contains($target_group, 'Club Presidents') || str_contains($target_group, 'Officers') || str_contains($target_group, 'Leaders')) {
-        $q = $conn->query("SELECT DISTINCT user_id FROM club_memberships WHERE role IN ('President', 'Vice President', 'Secretary', 'Treasurer', 'Auditor', 'PRO', 'Officer') AND status = 'Active' AND user_id != $author_id");
+        if ($club_id && $club_id > 0) {
+            $q = $conn->query("SELECT DISTINCT user_id FROM club_memberships WHERE club_id = $club_id AND role IN ('President', 'Vice President', 'Secretary', 'Treasurer', 'Auditor', 'PRO', 'Officer') AND status = 'Active' AND user_id != $author_id");
+        } else {
+            $q = $conn->query("SELECT DISTINCT user_id FROM club_memberships WHERE role IN ('President', 'Vice President', 'Secretary', 'Treasurer', 'Auditor', 'PRO', 'Officer') AND status = 'Active' AND user_id != $author_id");
+        }
         if ($q) {
             while ($r = $q->fetch_assoc()) { $recipient_ids[] = (int)$r['user_id']; }
         }
@@ -113,7 +117,10 @@ switch ($action) {
             $where[] = "a.status = 'Published'";
         } elseif ($user_role === 'club_adviser') {
             // Adviser: Club announcements for assigned clubs + System + Council
-            $where[] = "(a.scope = 'Club' OR a.scope = 'System' OR a.scope = 'Council' OR a.author_id = ?)";
+            $assigned_clubs = get_user_assigned_clubs($conn, $user_id, $user_role);
+            $assigned_ids = array_map('intval', array_column($assigned_clubs, 'id'));
+            $cid_list = !empty($assigned_ids) ? implode(',', $assigned_ids) : '0';
+            $where[] = "(a.scope IN ('System', 'Council') OR a.club_id IN ($cid_list) OR a.author_id = ?)";
             $params[] = $user_id;
             $types .= 'i';
             $where[] = "a.status = 'Published'";
@@ -221,17 +228,18 @@ switch ($action) {
         } else {
             // Club Adviser: strictly organization announcements
             $scope = 'Club';
-            $sess_user = $_SESSION['username'] ?? '';
-            $cm = $conn->prepare("SELECT id FROM clubs WHERE (id IN (SELECT club_id FROM club_memberships WHERE user_id=? AND status='Active') OR code=UPPER(SUBSTRING_INDEX(?, '.', 1))) AND status='Active' LIMIT 1");
-            $cm->bind_param('is', $user_id, $sess_user);
-            $cm->execute();
-            $cm->bind_result($my_cid);
-            $cm->fetch();
-            $cm->close();
-            if (empty($my_cid)) {
+            $assigned_clubs = get_user_assigned_clubs($conn, $user_id, $user_role);
+            $assigned_ids = array_map('intval', array_column($assigned_clubs, 'id'));
+            if (empty($assigned_ids)) {
                 annRespond(false, 'You do not have an active club assignment to publish announcements.');
             }
-            $club_id = (int)$my_cid;
+
+            $submitted_club_id = !empty($_POST['club_id']) ? (int)$_POST['club_id'] : 0;
+            if ($submitted_club_id > 0 && in_array($submitted_club_id, $assigned_ids, true)) {
+                $club_id = $submitted_club_id;
+            } else {
+                $club_id = $assigned_ids[0];
+            }
         }
 
         // Publication status check

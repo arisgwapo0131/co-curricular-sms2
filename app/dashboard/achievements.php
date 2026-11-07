@@ -118,32 +118,8 @@ $achievements = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 
 // -- Club List for Submit Form --------------------------------
-$clubs = [];
 if ($sess_role === 'club_adviser') {
-    $stmt_c = $conn->prepare(
-        "SELECT c.id, c.name, c.code
-         FROM clubs c
-         WHERE (c.id IN (SELECT club_id FROM club_memberships WHERE user_id = ? AND status = 'Active')
-            OR c.code = UPPER(SUBSTRING_INDEX(?, '.', 1)))
-           AND c.status = 'Active'
-         ORDER BY c.name"
-    );
-    $stmt_c->bind_param('is', $user_id, $sess_user);
-    $stmt_c->execute();
-    $clubs = $stmt_c->get_result()->fetch_all(MYSQLI_ASSOC);
-    $stmt_c->close();
-} elseif ($sess_role === 'student') {
-    $stmt_c = $conn->prepare(
-        "SELECT c.id, c.name, c.code
-         FROM clubs c
-         JOIN club_memberships cm ON cm.club_id = c.id
-         WHERE cm.user_id = ? AND cm.status = 'Active' AND c.status = 'Active'
-         ORDER BY c.name"
-    );
-    $stmt_c->bind_param('i', $user_id);
-    $stmt_c->execute();
-    $clubs = $stmt_c->get_result()->fetch_all(MYSQLI_ASSOC);
-    $stmt_c->close();
+    $clubs = !empty($adviser_clubs) ? $adviser_clubs : get_user_assigned_clubs($conn, $user_id, $sess_role);
 } else {
     $clubs = get_user_assigned_clubs($conn, $user_id, $sess_role);
 }
@@ -591,7 +567,7 @@ require_once __DIR__ . '/../shared/sidebar.php';
           <label>Recipient Organization *</label>
           <select id="achClub">
             <?php if (empty($clubs)): ?>
-              <option value="">-- No Active Joined Organizations (Join a club first) --</option>
+              <option value=""><?= ($sess_role === 'club_adviser') ? '-- No Assigned Organization (Contact Administrator) --' : '-- No Active Joined Organizations (Join a club first) --' ?></option>
             <?php else: ?>
               <?php if ($sess_role !== 'club_adviser'): ?>
                 <option value="">-- Select Recipient Organization --</option>

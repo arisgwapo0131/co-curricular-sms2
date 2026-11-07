@@ -86,8 +86,25 @@ switch ($action) {
             cRespond(false, 'Club and Adviser name are required.');
         }
 
-        $stmt = $conn->prepare("UPDATE clubs SET adviser_name = ? WHERE id = ?");
-        $stmt->bind_param('si', $adviser_name, $club_id);
+        $adviser_user_id = !empty($_POST['adviser_user_id']) ? (int)$_POST['adviser_user_id'] : null;
+        if (!$adviser_user_id && !empty($adviser_name)) {
+            $u_adv = $conn->prepare("SELECT id FROM users WHERE role = 'club_adviser' AND CONCAT(first_name, ' ', last_name) = ? LIMIT 1");
+            if ($u_adv) {
+                $u_adv->bind_param('s', $adviser_name);
+                $u_adv->execute();
+                $u_r = $u_adv->get_result()->fetch_assoc();
+                $u_adv->close();
+                if ($u_r) $adviser_user_id = (int)$u_r['id'];
+            }
+        }
+
+        if ($adviser_user_id) {
+            $stmt = $conn->prepare("UPDATE clubs SET adviser_name = ?, adviser_user_id = ? WHERE id = ?");
+            $stmt->bind_param('sii', $adviser_name, $adviser_user_id, $club_id);
+        } else {
+            $stmt = $conn->prepare("UPDATE clubs SET adviser_name = ? WHERE id = ?");
+            $stmt->bind_param('si', $adviser_name, $club_id);
+        }
         if (!$stmt->execute()) {
             cRespond(false, 'Failed to update adviser: ' . $stmt->error);
         }

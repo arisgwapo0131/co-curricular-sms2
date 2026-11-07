@@ -412,15 +412,10 @@ if (!empty($action)) {
 
         // Adviser can only open for their assigned club events
         if ($user_role === 'club_adviser') {
-            $sess_user = $_SESSION['username'] ?? '';
-            $checkEv = $conn->query("
-                SELECT e.id, e.title, c.name as club_name
-                FROM events e
-                JOIN clubs c ON c.id = e.club_id
-                WHERE e.id = $event_id
-                  AND (c.code = UPPER(SUBSTRING_INDEX('$sess_user', '.', 1))
-                       OR e.club_id IN (SELECT club_id FROM club_memberships WHERE user_id = $user_id AND status = 'Active'))
-            ");
+            $assigned_clubs = get_user_assigned_clubs($conn, $user_id, $user_role);
+            $assigned_ids = array_map('intval', array_column($assigned_clubs, 'id'));
+            $cid_list = !empty($assigned_ids) ? implode(',', $assigned_ids) : '0';
+            $checkEv = $conn->query("SELECT id FROM events WHERE id = $event_id AND club_id IN ($cid_list)");
             if (!$checkEv || $checkEv->num_rows === 0) {
                 aRespond(false, 'You are only authorized to manage attendance for your assigned club events.');
             }
@@ -659,13 +654,10 @@ if (!empty($action)) {
 
         // Adviser can only view attempts for their assigned events
         if ($user_role === 'club_adviser') {
-            $sess_user = $_SESSION['username'] ?? '';
-            $where .= " AND (asa.event_id IN (
-                SELECT e.id FROM events e
-                JOIN clubs c ON c.id = e.club_id
-                WHERE c.code = UPPER(SUBSTRING_INDEX('$sess_user', '.', 1))
-                   OR e.club_id IN (SELECT club_id FROM club_memberships WHERE user_id = $user_id AND status = 'Active')
-            ))";
+            $assigned_clubs = get_user_assigned_clubs($conn, $user_id, $user_role);
+            $assigned_ids = array_map('intval', array_column($assigned_clubs, 'id'));
+            $cid_list = !empty($assigned_ids) ? implode(',', $assigned_ids) : '0';
+            $where .= " AND (asa.event_id IN (SELECT id FROM events WHERE club_id IN ($cid_list)))";
         }
 
         $sql = "
@@ -702,13 +694,10 @@ if (!empty($action)) {
 
         $where = "WHERE 1=1";
         if ($user_role === 'club_adviser') {
-            $sess_user = $_SESSION['username'] ?? '';
-            $where .= " AND (qs.event_id IN (
-                SELECT e.id FROM events e
-                JOIN clubs c ON c.id = e.club_id
-                WHERE c.code = UPPER(SUBSTRING_INDEX('$sess_user', '.', 1))
-                   OR e.club_id IN (SELECT club_id FROM club_memberships WHERE user_id = $user_id AND status = 'Active')
-            ))";
+            $assigned_clubs = get_user_assigned_clubs($conn, $user_id, $user_role);
+            $assigned_ids = array_map('intval', array_column($assigned_clubs, 'id'));
+            $cid_list = !empty($assigned_ids) ? implode(',', $assigned_ids) : '0';
+            $where .= " AND (qs.event_id IN (SELECT id FROM events WHERE club_id IN ($cid_list)))";
         }
 
         $sql = "
@@ -756,14 +745,10 @@ if (!empty($action)) {
 
         // Adviser authorization check
         if ($user_role === 'club_adviser') {
-            $sess_user = $_SESSION['username'] ?? '';
-            $checkEv = $conn->query("
-                SELECT e.id FROM events e
-                JOIN clubs c ON c.id = e.club_id
-                WHERE e.id = $event_id
-                  AND (c.code = UPPER(SUBSTRING_INDEX('$sess_user', '.', 1))
-                       OR e.club_id IN (SELECT club_id FROM club_memberships WHERE user_id = $user_id AND status = 'Active'))
-            ");
+            $assigned_clubs = get_user_assigned_clubs($conn, $user_id, $user_role);
+            $assigned_ids = array_map('intval', array_column($assigned_clubs, 'id'));
+            $cid_list = !empty($assigned_ids) ? implode(',', $assigned_ids) : '0';
+            $checkEv = $conn->query("SELECT id FROM events WHERE id = $event_id AND club_id IN ($cid_list)");
             if (!$checkEv || $checkEv->num_rows === 0) {
                 aRespond(false, 'You can only record manual attendance for your assigned club events.');
             }

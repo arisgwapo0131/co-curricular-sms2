@@ -45,8 +45,10 @@ $is_railway = (bool)(
     (getenv('MYSQLHOST') && strpos(getenv('MYSQLHOST'), 'railway') !== false)
 );
 
-// CRITICAL DIRECTIVE: Always use 'sms_db' on Railway & Cloud deployments
-if ($is_railway || empty($db) || $db === 'railway' || $db === 'test') {
+$explicit_db = getenv('DB_NAME');
+if (!empty($explicit_db)) {
+    $db = $explicit_db;
+} elseif (empty($db) || $db === 'test') {
     $db = 'sms_db';
 }
 
@@ -101,8 +103,15 @@ if (!$connected || !$mysqli) {
 echo "✅ Connected to MySQL server successfully.\n";
 
 // 3. Ensure database exists
-$mysqli->query("CREATE DATABASE IF NOT EXISTS `{$db}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-$mysqli->select_db($db);
+@$mysqli->query("CREATE DATABASE IF NOT EXISTS `{$db}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+if (!$mysqli->select_db($db)) {
+    // If selecting $db failed, try selecting whatever default database is available (e.g. railway)
+    $env_db = getenv('MYSQLDATABASE');
+    if (!empty($env_db) && $mysqli->select_db($env_db)) {
+        $db = $env_db;
+        echo "ℹ️ Using existing database: {$db}\n";
+    }
+}
 $mysqli->set_charset('utf8mb4');
 
 // 4. Check if tables exist

@@ -46,16 +46,10 @@ switch ($action) {
         $types  = '';
 
         if ($user_role === 'club_adviser') {
-            $cm = $conn->prepare("SELECT club_id FROM club_memberships WHERE user_id=? AND status='Active' LIMIT 1");
-            $cm->bind_param('i', $user_id);
-            $cm->execute();
-            $cm->bind_result($my_club_id);
-            $cm->fetch();
-            $cm->close();
-            if (!empty($my_club_id)) {
-                $where  .= " AND br.club_id = ?";
-                $params = [(int)$my_club_id];
-                $types  = 'i';
+            $assigned_clubs = get_user_assigned_clubs($conn, $user_id, $user_role);
+            $assigned_ids = array_map('intval', array_column($assigned_clubs, 'id'));
+            if (!empty($assigned_ids)) {
+                $where .= " AND br.club_id IN (" . implode(',', $assigned_ids) . ")";
             } else {
                 $where .= " AND 1=0";
             }

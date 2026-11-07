@@ -166,22 +166,15 @@ switch ($action) {
         $club_id = null;
         if ($event_type === 'Club') {
             if ($user_role === 'club_adviser') {
-                $c_stmt = $conn->prepare("SELECT id FROM clubs WHERE adviser_user_id = ? LIMIT 1");
-                $c_stmt->bind_param('i', $user_id);
-                $c_stmt->execute();
-                $c_res = $c_stmt->get_result()->fetch_assoc();
-                $c_stmt->close();
-                $club_id = $c_res['id'] ?? 0;
-                if (!$club_id) {
-                    $cm = $conn->prepare("SELECT club_id FROM club_memberships WHERE user_id=? AND role IN ('Adviser','adviser','Club Adviser') AND status='Active' LIMIT 1");
-                    $cm->bind_param('i', $user_id);
-                    $cm->execute();
-                    $cm->bind_result($club_id);
-                    $cm->fetch();
-                    $cm->close();
-                }
-                if (!$club_id) {
+                $assigned_clubs = get_user_assigned_clubs($conn, $user_id, $user_role);
+                $assigned_ids = array_map('intval', array_column($assigned_clubs, 'id'));
+                if (empty($assigned_ids)) {
                     eRespond(false, 'No assigned organization found for your adviser account.');
+                }
+                if ($raw_club_id > 0 && in_array($raw_club_id, $assigned_ids, true)) {
+                    $club_id = $raw_club_id;
+                } else {
+                    $club_id = $assigned_ids[0];
                 }
                 if (!verify_club_adviser_scope($conn, (int)$club_id, $user_id)) {
                     eRespond(false, 'Unauthorized: You are not assigned as the adviser for this organization.');
@@ -509,23 +502,14 @@ switch ($action) {
 
         // Scope check: If adviser, verify event belongs to their organization or was created by them
         if ($user_role === 'club_adviser') {
-            $sess_user = $_SESSION['username'] ?? '';
-            $chk_ev = $conn->prepare("
-                SELECT e.id FROM events e
-                LEFT JOIN clubs c ON c.id = e.club_id
-                WHERE e.id = ? AND (
-                    e.created_by = ?
-                    OR e.club_id IN (SELECT club_id FROM club_memberships WHERE user_id = ? AND status = 'Active')
-                    OR c.code = UPPER(SUBSTRING_INDEX(?, '.', 1))
-                ) LIMIT 1
-            ");
-            $chk_ev->bind_param('iiis', $id, $user_id, $user_id, $sess_user);
+            $chk_ev = $conn->prepare("SELECT club_id, created_by FROM events WHERE id = ? LIMIT 1");
+            $chk_ev->bind_param('i', $id);
             $chk_ev->execute();
-            if (!$chk_ev->get_result()->fetch_assoc()) {
-                $chk_ev->close();
+            $ev_row = $chk_ev->get_result()->fetch_assoc();
+            $chk_ev->close();
+            if (!$ev_row || ((int)$ev_row['created_by'] !== $user_id && !verify_club_adviser_scope($conn, (int)$ev_row['club_id'], $user_id))) {
                 eRespond(false, 'Unauthorized: You can only edit events belonging to your assigned organization.');
             }
-            $chk_ev->close();
         }
 
         $curr_res = $conn->query("SELECT club_id, requires_budget, attachment, doc_letter, doc_board_resolution, doc_liquidation, doc_budget_proposal, status FROM events WHERE id = $id LIMIT 1");
@@ -636,23 +620,14 @@ switch ($action) {
 
         // Scope check: If adviser, verify event belongs to their organization or was created by them
         if ($user_role === 'club_adviser') {
-            $sess_user = $_SESSION['username'] ?? '';
-            $chk_ev = $conn->prepare("
-                SELECT e.id FROM events e
-                LEFT JOIN clubs c ON c.id = e.club_id
-                WHERE e.id = ? AND (
-                    e.created_by = ?
-                    OR e.club_id IN (SELECT club_id FROM club_memberships WHERE user_id = ? AND status = 'Active')
-                    OR c.code = UPPER(SUBSTRING_INDEX(?, '.', 1))
-                ) LIMIT 1
-            ");
-            $chk_ev->bind_param('iiis', $id, $user_id, $user_id, $sess_user);
+            $chk_ev = $conn->prepare("SELECT club_id, created_by FROM events WHERE id = ? LIMIT 1");
+            $chk_ev->bind_param('i', $id);
             $chk_ev->execute();
-            if (!$chk_ev->get_result()->fetch_assoc()) {
-                $chk_ev->close();
+            $ev_row = $chk_ev->get_result()->fetch_assoc();
+            $chk_ev->close();
+            if (!$ev_row || ((int)$ev_row['created_by'] !== $user_id && !verify_club_adviser_scope($conn, (int)$ev_row['club_id'], $user_id))) {
                 eRespond(false, 'Unauthorized: You can only delete events belonging to your assigned organization.');
             }
-            $chk_ev->close();
         }
 
         $stmt = $conn->prepare("UPDATE events SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?");

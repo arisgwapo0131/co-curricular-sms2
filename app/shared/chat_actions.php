@@ -950,15 +950,23 @@ switch ($action) {
 
         // Look up club context if any
         $club_id = null;
-        $cm_q = $conn->prepare("SELECT club_id FROM club_memberships WHERE user_id = ? AND status = 'Active' LIMIT 1");
-        if ($cm_q) {
-            $cm_q->bind_param('i', $user_id);
-            $cm_q->execute();
-            $cm_q->bind_result($cid);
-            if ($cm_q->fetch()) {
-                $club_id = (int)$cid;
+        if ($user_role === 'club_adviser' && function_exists('get_user_assigned_clubs')) {
+            $assigned_clubs = get_user_assigned_clubs($conn, $user_id, $user_role);
+            if (!empty($assigned_clubs)) {
+                $club_id = (int)$assigned_clubs[0]['id'];
             }
-            $cm_q->close();
+        }
+        if (!$club_id) {
+            $cm_q = $conn->prepare("SELECT club_id FROM club_memberships WHERE user_id = ? AND status = 'Active' LIMIT 1");
+            if ($cm_q) {
+                $cm_q->bind_param('i', $user_id);
+                $cm_q->execute();
+                $cm_q->bind_result($cid);
+                if ($cm_q->fetch()) {
+                    $club_id = (int)$cid;
+                }
+                $cm_q->close();
+            }
         }
 
         $ins = $conn->prepare("INSERT INTO chat_messages (sender_id, receiver_id, club_id, message, is_read, created_at) VALUES (?, ?, ?, ?, 0, NOW())");

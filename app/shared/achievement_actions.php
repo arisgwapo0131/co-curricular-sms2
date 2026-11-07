@@ -37,16 +37,14 @@ switch ($action) {
             $params = [$user_id];
             $types  = 'i';
         } elseif ($user_role === 'club_adviser') {
-            // Adviser sees their club
-            $sess_user = $_SESSION['username'] ?? '';
-            $cm = $conn->prepare("SELECT id FROM clubs WHERE (id IN (SELECT club_id FROM club_memberships WHERE user_id=? AND status='Active') OR code=UPPER(SUBSTRING_INDEX(?, '.', 1))) AND status='Active' LIMIT 1");
-            $cm->bind_param('is', $user_id, $sess_user);
-            $cm->execute();
-            $cm->bind_result($club_id);
-            $cm->fetch();
-            $cm->close();
-            if (!empty($club_id)) { $where = "WHERE a.club_id = ?"; $params = [(int)$club_id]; $types = 'i'; }
-            else { $where = "WHERE 1=0"; }
+            // Adviser sees their assigned clubs
+            $adviser_clubs = get_user_assigned_clubs($conn, $user_id, $user_role);
+            $adviser_club_ids = array_map('intval', array_column($adviser_clubs, 'id'));
+            if (!empty($adviser_club_ids)) {
+                $where = "WHERE a.club_id IN (" . implode(',', $adviser_club_ids) . ")";
+            } else {
+                $where = "WHERE 1=0";
+            }
         }
 
         $sql = "SELECT a.id, a.title, a.competition, a.award_date, a.status, a.notes, a.proof_file, a.created_at,
@@ -87,21 +85,43 @@ switch ($action) {
         $title       = trim($_POST['title']       ?? '');
         $competition = trim($_POST['competition'] ?? '');
         $award_date  = trim($_POST['award_date']  ?? '');
+        $notes       = trim($_POST['notes']       ?? '');
 
         if (!$title || !$competition || !$award_date) achRespond(false, 'Title, competition, and award date are required.');
 
         // Get club_id — prefer posted value, fall back to membership or adviser club
         $club_id = (int)($_POST['club_id'] ?? 0);
         if (!$club_id) {
-            $sess_user = $_SESSION['username'] ?? '';
-            $cm = $conn->prepare("SELECT id FROM clubs WHERE (id IN (SELECT club_id FROM club_memberships WHERE user_id=? AND status='Active') OR code=UPPER(SUBSTRING_INDEX(?, '.', 1))) AND status='Active' LIMIT 1");
-            $cm->bind_param('is', $user_id, $sess_user);
-            $cm->execute();
-            $cm->bind_result($club_id);
-            $cm->fetch();
-            $cm->close();
+            $assigned = get_user_assigned_clubs($conn, $user_id, $user_role);
+            if (!empty($assigned)) {
+                $club_id = (int)$assigned[0]['id'];
+            }
         }
-        if (!$club_id) achRespond(false, 'You must belong to a club to submit an achievement. Please select one.');
+        if (!$club_id) {
+            $msg = ($user_role === 'club_adviser')
+                ? 'No organization assigned to your adviser account. Please contact an administrator.'
+                : 'You must belong to an organization to submit an achievement. Please select one.';
+            achRespond(false, $msg);
+        }
+
+        // Validate club exists and is active
+        $chk_c = $conn->prepare("SELECT id FROM clubs WHERE id = ? AND status = 'Active' AND deleted_at IS NULL LIMIT 1");
+        $chk_c->bind_param('i', $club_id);
+        $chk_c->execute();
+        $c_exists = $chk_c->get_result()->fetch_assoc();
+        $chk_c->close();
+        if (!$c_exists) {
+            achRespond(false, 'Selected organization is invalid or inactive.');
+        }
+
+        // If adviser, verify the club belongs to them
+        if ($user_role === 'club_adviser') {
+            $assigned = get_user_assigned_clubs($conn, $user_id, $user_role);
+            $assigned_ids = array_map('intval', array_column($assigned, 'id'));
+            if (!in_array($club_id, $assigned_ids, true)) {
+                achRespond(false, 'You can only submit achievements for your assigned organization.');
+            }
+        }
 
         // Handle file upload
         $proof_file = null;
@@ -133,10 +153,10 @@ switch ($action) {
         }
 
         $stmt = $conn->prepare(
-            "INSERT INTO achievements (club_id, submitted_by, title, competition, award_date, proof_file, status)
-             VALUES (?, ?, ?, ?, ?, ?, 'Pending')"
+            "INSERT INTO achievements (club_id, submitted_by, title, competition, award_date, proof_file, notes, status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending')"
         );
-        $stmt->bind_param('iissss', $club_id, $user_id, $title, $competition, $award_date, $proof_file);
+        $stmt->bind_param('iisssss', $club_id, $user_id, $title, $competition, $award_date, $proof_file, $notes);
         if (!$stmt->execute()) achRespond(false, 'Failed to submit: ' . $stmt->error);
         $new_id = $conn->insert_id;
         $stmt->close();
@@ -157,9 +177,14 @@ switch ($action) {
         $id = (int)($_POST['id'] ?? 0);
         if ($id <= 0) achRespond(false, 'Invalid achievement ID.');
 
-        $stmt = $conn->prepare("UPDATE achievements SET status='Verified', verified_by=?, notes=? WHERE id=?");
-        $note = trim($_POST['notes'] ?? ($user_role === 'ssc' ? 'Verified and endorsed by SSC.' : 'Verified and endorsed by Administrator.'));
-        $stmt->bind_param('isi', $user_id, $note, $id);
+        $posted_notes = trim($_POST['notes'] ?? '');
+        if ($posted_notes !== '') {
+            $stmt = $conn->prepare("UPDATE achievements SET status='Verified', verified_by=?, notes=? WHERE id=?");
+            $stmt->bind_param('isi', $user_id, $posted_notes, $id);
+        } else {
+            $stmt = $conn->prepare("UPDATE achievements SET status='Verified', verified_by=? WHERE id=?");
+            $stmt->bind_param('ii', $user_id, $id);
+        }
         if (!$stmt->execute()) achRespond(false, 'Failed to verify.');
         $stmt->close();
 
