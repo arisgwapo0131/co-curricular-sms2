@@ -58,7 +58,7 @@ RUN { \
 WORKDIR /var/www/html
 
 # Force cache invalidation so Railway & container platforms build the latest code
-ARG BUILD_VERSION=20261107_1625_railway_production
+ARG BUILD_VERSION=20261108_2308_railway_redeploy
 ENV BUILD_VERSION=${BUILD_VERSION}
 
 # Copy application files
