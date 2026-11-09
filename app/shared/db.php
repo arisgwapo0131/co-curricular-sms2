@@ -94,11 +94,27 @@ if ($pass === false || $pass === null) {
     $pass = getenv('MARIADB_PASSWORD') ?: (getenv('DB_PASSWORD') ?: (getenv('MYSQL_PASSWORD') ?: (getenv('DATABASE_PASSWORD') ?: '')));
 }
 
-$explicit_db = getenv('DB_NAME');
-if (!empty($explicit_db)) {
+// Detect if explicit Railway / Cloud DB environment variables are present
+$has_cloud_env = (bool)(
+    $is_railway ||
+    getenv('MYSQL_URL') ||
+    getenv('MYSQL_PUBLIC_URL') ||
+    getenv('DATABASE_URL') ||
+    getenv('MYSQLHOST') ||
+    getenv('RAILWAY_ENVIRONMENT') ||
+    getenv('RAILWAY_PROJECT_ID') ||
+    (getenv('DB_HOST') && !in_array(getenv('DB_HOST'), ['127.0.0.1', 'localhost'], true))
+);
+
+$cloud_db = getenv('MYSQLDATABASE') ?: (getenv('MARIADB_DATABASE') ?: (getenv('MYSQL_DATABASE') ?: ''));
+$explicit_db = getenv('DB_NAME') ?: (getenv('DB_DATABASE') ?: '');
+
+if ($has_cloud_env && !empty($cloud_db)) {
+    $db = $cloud_db;
+} elseif (!empty($explicit_db)) {
     $db = $explicit_db;
 } else {
-    $db = getenv('MYSQLDATABASE') ?: (getenv('MARIADB_DATABASE') ?: (getenv('DB_DATABASE') ?: (getenv('MYSQL_DATABASE') ?: (getenv('DATABASE_NAME') ?: 'sms_db'))));
+    $db = $cloud_db ?: (getenv('DATABASE_NAME') ?: 'sms_db');
     if (empty($db) || $db === 'test') {
         $db = 'sms_db';
     }
@@ -119,43 +135,71 @@ $db_connected = false;
 $db_error = null;
 $conn = null;
 
-// Detect if explicit Railway / Cloud DB environment variables are present
-$has_cloud_env = (bool)(
-    $is_railway ||
-    getenv('MYSQL_URL') ||
-    getenv('MYSQL_PUBLIC_URL') ||
-    getenv('DATABASE_URL') ||
-    getenv('MYSQLHOST') ||
-    getenv('RAILWAY_ENVIRONMENT') ||
-    getenv('RAILWAY_PROJECT_ID') ||
-    (getenv('DB_HOST') && !in_array(getenv('DB_HOST'), ['127.0.0.1', 'localhost'], true))
-);
-
 // 4. Ultra-Fast Resilient Connection Engine with Host Caching & Smart Prioritization
 $cache_file = __DIR__ . '/.db_host_cache.json';
 
-// Helper function to test candidate profiles with strict non-blocking timeout
+// Helper function to test candidate profiles with strict non-blocking timeout & SSL support
 if (!function_exists('bcp_probe_db_profile')) {
     function bcp_probe_db_profile(array $p, bool $is_setup = false, int $timeout = 2): ?mysqli {
         if (empty($p['host'])) return null;
         try {
-            $c = mysqli_init();
-            if (!$c) return null;
-            @$c->options(MYSQLI_OPT_CONNECT_TIMEOUT, $timeout);
             $target_db = $is_setup ? '' : ($p['db'] ?? '');
             $port = (int)($p['port'] ?? 3306);
-            $ok = @$c->real_connect($p['host'], $p['user'] ?? '', $p['pass'] ?? '', $target_db, $port);
-            if ($ok && !$c->connect_error) {
-                return $c;
+            $host = $p['host'];
+            $user = $p['user'] ?? '';
+            $pass = $p['pass'] ?? '';
+
+            $use_ssl = (
+                !empty($p['ssl']) ||
+                getenv('DB_SSL') === 'true' ||
+                getenv('MYSQL_SSL') === 'true'
+            );
+
+            // 1. First attempt: standard connection (or explicit SSL if configured)
+            $c = mysqli_init();
+            if ($c) {
+                @$c->options(MYSQLI_OPT_CONNECT_TIMEOUT, $timeout);
+                if ($use_ssl) {
+                    @$c->ssl_set(NULL, NULL, NULL, NULL, NULL);
+                    $flags = defined('MYSQLI_CLIENT_SSL_DONT_VERIFY_SERVER_CERT') ? MYSQLI_CLIENT_SSL_DONT_VERIFY_SERVER_CERT : (defined('MYSQLI_CLIENT_SSL') ? MYSQLI_CLIENT_SSL : 0);
+                    $ok = @$c->real_connect($host, $user, $pass, $target_db, $port, NULL, $flags);
+                } else {
+                    $ok = @$c->real_connect($host, $user, $pass, $target_db, $port);
+                }
+
+                if ($ok && !$c->connect_error) {
+                    return $c;
+                }
+
+                // If standard connection failed and host is remote cloud, retry with SSL
+                if (!$ok && !$use_ssl && !in_array($host, ['127.0.0.1', 'localhost', 'db'], true) && strpos($host, '.internal') === false) {
+                    $cssl = mysqli_init();
+                    if ($cssl) {
+                        @$cssl->options(MYSQLI_OPT_CONNECT_TIMEOUT, $timeout);
+                        @$cssl->ssl_set(NULL, NULL, NULL, NULL, NULL);
+                        $flags = defined('MYSQLI_CLIENT_SSL_DONT_VERIFY_SERVER_CERT') ? MYSQLI_CLIENT_SSL_DONT_VERIFY_SERVER_CERT : (defined('MYSQLI_CLIENT_SSL') ? MYSQLI_CLIENT_SSL : 0);
+                        if (@$cssl->real_connect($host, $user, $pass, $target_db, $port, NULL, $flags) && !$cssl->connect_error) {
+                            return $cssl;
+                        }
+                    }
+                }
             }
-            // If target DB didn't connect, try connecting without DB to create/select it
-            if (!$is_setup && !empty($p['db'])) {
+
+            // 2. If target DB didn't connect, try connecting without DB to select/create it
+            if (!$is_setup && !empty($target_db)) {
                 $c2 = mysqli_init();
                 if ($c2) {
                     @$c2->options(MYSQLI_OPT_CONNECT_TIMEOUT, $timeout);
-                    if (@$c2->real_connect($p['host'], $p['user'] ?? '', $p['pass'] ?? '', '', $port)) {
-                        @$c2->query("CREATE DATABASE IF NOT EXISTS `" . $p['db'] . "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-                        if (@$c2->select_db($p['db'])) {
+                    if ($use_ssl) {
+                        @$c2->ssl_set(NULL, NULL, NULL, NULL, NULL);
+                        $flags = defined('MYSQLI_CLIENT_SSL_DONT_VERIFY_SERVER_CERT') ? MYSQLI_CLIENT_SSL_DONT_VERIFY_SERVER_CERT : 0;
+                        $ok2 = @$c2->real_connect($host, $user, $pass, '', $port, NULL, $flags);
+                    } else {
+                        $ok2 = @$c2->real_connect($host, $user, $pass, '', $port);
+                    }
+                    if ($ok2 && !$c2->connect_error) {
+                        @$c2->query("CREATE DATABASE IF NOT EXISTS `" . $target_db . "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+                        if (@$c2->select_db($target_db)) {
                             return $c2;
                         }
                     }
@@ -212,7 +256,7 @@ if (!$conn) {
 
     // 1. If Railway or Cloud environment variables are present, prioritize them FIRST!
     if ($has_cloud_env || $is_railway) {
-        $db_targets = array_unique(array_filter([$db, 'sms_db', 'railway']));
+        $db_targets = array_unique(array_filter([$db, $cloud_db ?? '', 'sms_db', 'railway', 'defaultdb']));
 
         if ($host && !in_array($host, ['127.0.0.1', 'localhost'], true)) {
             foreach ($db_targets as $t_db) {
@@ -270,14 +314,14 @@ if (!$conn) {
             'port' => 3306,
             'user' => 'root',
             'pass' => '',
-            'db'   => 'sms_db'
+            'db'   => $db ?: 'sms_db'
         ];
         $connection_profiles[] = [
             'host' => 'localhost',
             'port' => 3306,
             'user' => 'root',
             'pass' => '',
-            'db'   => 'sms_db'
+            'db'   => $db ?: 'sms_db'
         ];
     }
 
@@ -287,7 +331,7 @@ if (!$conn) {
         'port' => $port,
         'user' => $user,
         'pass' => $pass,
-        'db'   => 'sms_db'
+        'db'   => $db
     ];
 
     // 4. Docker Compose fallback
@@ -296,7 +340,7 @@ if (!$conn) {
         'port' => 3306,
         'user' => 'sms_user',
         'pass' => 'sms_secure_password',
-        'db'   => 'sms_db'
+        'db'   => $db ?: 'sms_db'
     ];
 
     // 5. Local fallback if not added previously
@@ -306,7 +350,7 @@ if (!$conn) {
             'port' => 3306,
             'user' => 'root',
             'pass' => '',
-            'db'   => 'sms_db'
+            'db'   => $db ?: 'sms_db'
         ];
     }
 

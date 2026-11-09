@@ -611,7 +611,7 @@ function get_user_assigned_clubs(?mysqli $db = null, ?int $user_id = null, ?stri
 
     if (in_array($user_role, ['super_admin', 'admin', 'staff', 'ssc'], true)) {
         $res = $db->query("
-            SELECT c.id, c.name, c.code, c.category, c.description, c.adviser_name,
+            SELECT c.id, c.name, c.code, c.category, c.sub_category, c.program, c.description, c.adviser_name,
                    (SELECT COUNT(*) FROM club_memberships cm WHERE cm.club_id = c.id AND cm.status = 'Active' AND LOWER(cm.role) != 'adviser' AND cm.role NOT LIKE '%adviser%') AS active_member_count,
                    (SELECT COUNT(*) FROM club_memberships cm WHERE cm.club_id = c.id AND cm.status = 'Pending' AND LOWER(cm.role) != 'adviser' AND cm.role NOT LIKE '%adviser%') AS pending_member_count
             FROM clubs c 
@@ -624,7 +624,7 @@ function get_user_assigned_clubs(?mysqli $db = null, ?int $user_id = null, ?stri
     if ($user_role === 'student') {
         if ($uid <= 0) return [];
         $stmt = $db->prepare("
-            SELECT c.id, c.name, c.code, c.category, c.description, c.adviser_name,
+            SELECT c.id, c.name, c.code, c.category, c.sub_category, c.program, c.description, c.adviser_name,
                    (SELECT COUNT(*) FROM club_memberships cm WHERE cm.club_id = c.id AND cm.status = 'Active' AND LOWER(cm.role) != 'adviser' AND cm.role NOT LIKE '%adviser%') AS active_member_count,
                    (SELECT COUNT(*) FROM club_memberships cm WHERE cm.club_id = c.id AND cm.status = 'Pending' AND LOWER(cm.role) != 'adviser' AND cm.role NOT LIKE '%adviser%') AS pending_member_count
             FROM clubs c
@@ -645,7 +645,7 @@ function get_user_assigned_clubs(?mysqli $db = null, ?int $user_id = null, ?stri
 
     // 1. Direct active adviser memberships or adviser_user_id
     $stmt = $db->prepare("
-        SELECT c.id, c.name, c.code, c.category, c.description, c.adviser_name,
+        SELECT c.id, c.name, c.code, c.category, c.sub_category, c.program, c.description, c.adviser_name,
                (SELECT COUNT(*) FROM club_memberships cm WHERE cm.club_id = c.id AND cm.status = 'Active' AND LOWER(cm.role) != 'adviser' AND cm.role NOT LIKE '%adviser%') AS active_member_count,
                (SELECT COUNT(*) FROM club_memberships cm WHERE cm.club_id = c.id AND cm.status = 'Pending' AND LOWER(cm.role) != 'adviser' AND cm.role NOT LIKE '%adviser%') AS pending_member_count
         FROM clubs c
@@ -686,7 +686,7 @@ function get_user_assigned_clubs(?mysqli $db = null, ?int $user_id = null, ?stri
     $prog_match = ($prefix === 'BSIT' || $prefix === 'ITS') ? 'BSIT' : '___NONE___';
 
     $stmt2 = $db->prepare("
-        SELECT c.id, c.name, c.code, c.category, c.description, c.adviser_name,
+        SELECT c.id, c.name, c.code, c.category, c.sub_category, c.program, c.description, c.adviser_name,
                (SELECT COUNT(*) FROM club_memberships cm WHERE cm.club_id = c.id AND cm.status = 'Active' AND LOWER(cm.role) != 'adviser' AND cm.role NOT LIKE '%adviser%') AS active_member_count,
                (SELECT COUNT(*) FROM club_memberships cm WHERE cm.club_id = c.id AND cm.status = 'Pending' AND LOWER(cm.role) != 'adviser' AND cm.role NOT LIKE '%adviser%') AS pending_member_count
         FROM clubs c
@@ -715,7 +715,7 @@ function get_user_assigned_clubs(?mysqli $db = null, ?int $user_id = null, ?stri
         $name_prof = 'Prof. ' . $full_name;
         $name_dr = 'Dr. ' . $full_name;
         $stmt3 = $db->prepare("
-            SELECT c.id, c.name, c.code, c.category, c.description, c.adviser_name,
+            SELECT c.id, c.name, c.code, c.category, c.sub_category, c.program, c.description, c.adviser_name,
                    (SELECT COUNT(*) FROM club_memberships cm WHERE cm.club_id = c.id AND cm.status = 'Active' AND LOWER(cm.role) != 'adviser' AND cm.role NOT LIKE '%adviser%') AS active_member_count,
                    (SELECT COUNT(*) FROM club_memberships cm WHERE cm.club_id = c.id AND cm.status = 'Pending' AND LOWER(cm.role) != 'adviser' AND cm.role NOT LIKE '%adviser%') AS pending_member_count
             FROM clubs c

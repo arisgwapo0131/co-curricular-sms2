@@ -54,6 +54,10 @@ function executeSQLScript(mysqli $conn, string $sqlFilePath, array &$errors): bo
         return false;
     }
 
+    // Strip hardcoded CREATE DATABASE and USE statements so scripts execute safely in any cloud/local database
+    $content = preg_replace('/^\s*CREATE\s+DATABASE\s+[^;]+;/mi', '', $content);
+    $content = preg_replace('/^\s*USE\s+[^;]+;/mi', '', $content);
+
     // Enable multi-query execution with exception safety for PHP 8.1+
     try {
         if ($conn->multi_query($content)) {

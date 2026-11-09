@@ -356,14 +356,17 @@ if (!empty($selected_club_code) || !empty($selected_club_id)) {
       justify-content: center;
       padding: 16px;
       box-sizing: border-box;
-      overflow-y: auto;
+      overflow: hidden;
+    }
+    .roster-modal-overlay.active {
+      display: flex !important;
     }
     .roster-modal-card {
       background: #ffffff;
       border-radius: 16px;
       width: 100%;
-      max-width: 720px;
-      max-height: 90vh;
+      max-width: 760px;
+      max-height: 88vh;
       display: flex;
       flex-direction: column;
       box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35);
@@ -371,9 +374,14 @@ if (!empty($selected_club_code) || !empty($selected_club_id)) {
       overflow: hidden;
       margin: auto;
       box-sizing: border-box;
+      position: relative;
+    }
+    #applicantReviewModal .roster-modal-card {
+      max-width: 780px;
+      height: min(88vh, 840px);
     }
     .roster-modal-header {
-      padding: 16px 20px;
+      padding: 14px 20px;
       border-bottom: 1px solid #e2e8f0;
       display: flex;
       align-items: center;
@@ -383,17 +391,40 @@ if (!empty($selected_club_code) || !empty($selected_club_id)) {
       gap: 12px;
     }
     .roster-modal-body {
-      padding: 20px;
+      padding: 16px 20px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
-      overflow-y: auto;
-      flex: 1 1 auto;
-      min-height: 0;
+      gap: 14px;
+      overflow-y: scroll !important;
+      overflow-x: hidden !important;
+      flex: 1 1 0px !important;
+      min-height: 0 !important;
+      height: 100% !important;
+      overscroll-behavior: contain;
       -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      scrollbar-color: #94a3b8 #f1f5f9;
+    }
+    .roster-modal-body > * {
+      flex-shrink: 0 !important;
+      min-height: min-content !important;
+    }
+    .roster-modal-body::-webkit-scrollbar {
+      width: 8px;
+    }
+    .roster-modal-body::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 4px;
+    }
+    .roster-modal-body::-webkit-scrollbar-thumb {
+      background: #94a3b8;
+      border-radius: 4px;
+    }
+    .roster-modal-body::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
     }
     .roster-modal-footer {
-      padding: 14px 20px;
+      padding: 12px 20px;
       border-top: 1px solid #e2e8f0;
       background: #f8fafc;
       display: flex;
@@ -427,6 +458,10 @@ if (!empty($selected_club_code) || !empty($selected_club_id)) {
         max-height: 92vh;
         border-radius: 14px;
       }
+      #applicantReviewModal .roster-modal-card {
+        max-width: 95vw;
+        height: min(92vh, 840px);
+      }
       .roster-modal-header {
         padding: 14px 16px;
       }
@@ -459,6 +494,11 @@ if (!empty($selected_club_code) || !empty($selected_club_id)) {
         max-height: 94vh;
         border-radius: 16px 16px 0 0;
         margin-bottom: 0;
+      }
+      #applicantReviewModal .roster-modal-card {
+        max-width: 100vw;
+        height: 92vh;
+        border-radius: 16px 16px 0 0;
       }
       .roster-modal-header {
         padding: 12px 14px;
@@ -1249,46 +1289,46 @@ if (!empty($selected_club_code) || !empty($selected_club_id)) {
         <div class="roster-modal-body">
           
           <!-- Applicant Profile Card -->
-          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px 18px;">
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px 15px;">
             <!-- Top strip: Name, ID, Organization -->
-            <div class="profile-top-strip" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid #e2e8f0;">
-              <div style="display:flex; align-items:center; gap:12px; min-width:0;">
-                <div id="reviewAvatar" style="width:42px; height:42px; border-radius:50%; background:#2563eb; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.95rem; box-shadow:0 2px 4px rgba(37,99,235,0.25); flex-shrink:0;">
+            <div class="profile-top-strip" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #e2e8f0;">
+              <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                <div id="reviewAvatar" style="width:38px; height:38px; border-radius:50%; background:#2563eb; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.9rem; box-shadow:0 2px 4px rgba(37,99,235,0.2); flex-shrink:0;">
                   JS
                 </div>
                 <div style="min-width:0;">
-                  <div style="font-size:1.05rem; font-weight:800; color:#0f172a; line-height:1.2; word-break:break-word;" id="reviewStudentName">Student Applicant</div>
-                  <div style="font-family:monospace; font-weight:700; font-size:0.8rem; color:#2563eb; margin-top:2px;" id="reviewStudentNo">2024-00000</div>
+                  <div style="font-size:1rem; font-weight:800; color:#0f172a; line-height:1.2; word-break:break-word;" id="reviewStudentName">Student Applicant</div>
+                  <div style="font-family:monospace; font-weight:700; font-size:0.78rem; color:#2563eb; margin-top:2px;" id="reviewStudentNo">2024-00000</div>
                 </div>
               </div>
               <div class="org-right-badge" style="text-align:right;">
-                <span id="reviewOrgBadge" style="display:inline-block; font-size:0.8rem; font-weight:700; color:#1e293b; background:#fff; border:1px solid #cbd5e1; padding:4px 10px; border-radius:6px; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
+                <span id="reviewOrgBadge" style="display:inline-block; font-size:0.75rem; font-weight:700; color:#1e293b; background:#fff; border:1px solid #cbd5e1; padding:3px 8px; border-radius:6px; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
                   CSSEC
                 </span>
-                <div style="font-size:0.72rem; color:#64748b; margin-top:3px; max-width:240px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" id="reviewOrgFullName">Computer Science Student Exec Council</div>
+                <div style="font-size:0.7rem; color:#64748b; margin-top:2px; max-width:240px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" id="reviewOrgFullName">Computer Science Student Exec Council</div>
               </div>
             </div>
 
             <!-- Bottom metadata grid -->
             <div class="review-profile-meta-grid">
               <div>
-                <div style="font-size:0.7rem; text-transform:uppercase; color:#64748b; font-weight:700; letter-spacing:0.3px; margin-bottom:2px;">Academic Program</div>
-                <div style="font-weight:600; color:#1e293b; display:flex; align-items:center; gap:6px;">
-                  <i class="fa-solid fa-graduation-cap" style="color:#2563eb; font-size:0.75rem;"></i>
+                <div style="font-size:0.68rem; text-transform:uppercase; color:#64748b; font-weight:700; letter-spacing:0.3px; margin-bottom:2px;">Academic Program</div>
+                <div style="font-weight:600; color:#1e293b; display:flex; align-items:center; gap:5px; font-size:0.8rem;">
+                  <i class="fa-solid fa-graduation-cap" style="color:#2563eb; font-size:0.72rem;"></i>
                   <span id="reviewProgram">BSIT</span>
                 </div>
               </div>
               <div>
-                <div style="font-size:0.7rem; text-transform:uppercase; color:#64748b; font-weight:700; letter-spacing:0.3px; margin-bottom:2px;">Year Level</div>
-                <div style="font-weight:600; color:#1e293b; display:flex; align-items:center; gap:6px;">
-                  <i class="fa-solid fa-layer-group" style="color:#0284c7; font-size:0.75rem;"></i>
+                <div style="font-size:0.68rem; text-transform:uppercase; color:#64748b; font-weight:700; letter-spacing:0.3px; margin-bottom:2px;">Year Level</div>
+                <div style="font-weight:600; color:#1e293b; display:flex; align-items:center; gap:5px; font-size:0.8rem;">
+                  <i class="fa-solid fa-layer-group" style="color:#0284c7; font-size:0.72rem;"></i>
                   <span id="reviewYear">2nd Year</span>
                 </div>
               </div>
               <div>
-                <div style="font-size:0.7rem; text-transform:uppercase; color:#64748b; font-weight:700; letter-spacing:0.3px; margin-bottom:2px;">Submission Date</div>
-                <div style="font-weight:600; color:#475569; display:flex; align-items:center; gap:6px;">
-                  <i class="fa-regular fa-clock" style="color:#64748b; font-size:0.75rem;"></i>
+                <div style="font-size:0.68rem; text-transform:uppercase; color:#64748b; font-weight:700; letter-spacing:0.3px; margin-bottom:2px;">Submission Date</div>
+                <div style="font-weight:600; color:#475569; display:flex; align-items:center; gap:5px; font-size:0.8rem;">
+                  <i class="fa-regular fa-clock" style="color:#64748b; font-size:0.72rem;"></i>
                   <span id="reviewSubmitted">-</span>
                 </div>
               </div>
@@ -1296,37 +1336,37 @@ if (!empty($selected_club_code) || !empty($selected_club_id)) {
           </div>
 
           <!-- Student Organization Affiliations & Target Application -->
-          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 16px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #f1f5f9; padding-bottom:6px;">
-              <div style="font-size:0.72rem; text-transform:uppercase; color:#64748b; font-weight:800; letter-spacing:0.4px; display:flex; align-items:center; gap:6px;">
+          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:10px 14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">
+              <div style="font-size:0.68rem; text-transform:uppercase; color:#64748b; font-weight:800; letter-spacing:0.4px; display:flex; align-items:center; gap:6px;">
                 <i class="fa-solid fa-sitemap" style="color:#2563eb;"></i> Student Organization Affiliations
               </div>
-              <span id="reviewJoinedClubsCountBadge" style="font-size:0.72rem; font-weight:700; background:#eff6ff; color:#1d4ed8; padding:2px 8px; border-radius:10px; border:1px solid #bfdbfe;">
+              <span id="reviewJoinedClubsCountBadge" style="font-size:0.68rem; font-weight:700; background:#eff6ff; color:#1d4ed8; padding:1px 6px; border-radius:8px; border:1px solid #bfdbfe;">
                 0 Joined Clubs
               </span>
             </div>
             
             <!-- Currently Joined Clubs List -->
-            <div id="reviewJoinedClubsContainer" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+            <div id="reviewJoinedClubsContainer" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px;">
               <!-- Populated dynamically by JS -->
             </div>
             
             <!-- Target Club for this Application -->
-            <div style="background:#f8fafc; border:1.5px dashed #cbd5e1; border-radius:8px; padding:10px 12px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+            <div style="background:#f8fafc; border:1.5px dashed #cbd5e1; border-radius:8px; padding:8px 10px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px;">
               <div>
-                <span style="font-size:0.7rem; font-weight:700; text-transform:uppercase; color:#0284c7; display:block;">Applying to Join:</span>
-                <strong style="color:#0f172a; font-size:0.9rem;" id="reviewTargetClubName">Organization Name</strong>
-                <span style="font-size:0.75rem; color:#64748b; font-weight:600; margin-left:4px;" id="reviewTargetClubCode">(CODE)</span>
+                <span style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:#0284c7; display:block;">Applying to Join:</span>
+                <strong style="color:#0f172a; font-size:0.85rem;" id="reviewTargetClubName">Organization Name</strong>
+                <span style="font-size:0.72rem; color:#64748b; font-weight:600; margin-left:4px;" id="reviewTargetClubCode">(CODE)</span>
               </div>
-              <span style="font-size:0.75rem; font-weight:700; background:#eff6ff; color:#1d4ed8; padding:3px 10px; border-radius:6px; border:1px solid #bfdbfe;" id="reviewApplicationStatusPill">
+              <span style="font-size:0.72rem; font-weight:700; background:#eff6ff; color:#1d4ed8; padding:2px 8px; border-radius:6px; border:1px solid #bfdbfe;" id="reviewApplicationStatusPill">
                 <i class="fa-solid fa-file-signature"></i> Application in Review
               </span>
             </div>
           </div>
 
           <!-- Multi-Tier Clearance Progress Stepper -->
-          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:12px 16px;">
-            <div style="font-size:0.7rem; text-transform:uppercase; color:#64748b; font-weight:800; letter-spacing:0.5px; margin-bottom:10px;">
+          <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:10px 14px;">
+            <div style="font-size:0.68rem; text-transform:uppercase; color:#64748b; font-weight:800; letter-spacing:0.5px; margin-bottom:6px;">
               Multi-Tier Clearance Progress
             </div>
             <div class="review-stepper-grid" id="reviewStepperContainer">
@@ -1336,24 +1376,24 @@ if (!empty($selected_club_code) || !empty($selected_club_id)) {
 
           <!-- Section 1: Letter of Intent & Motivation Statement -->
           <div style="border:1px solid #e2e8f0; border-radius:12px; overflow:hidden;">
-            <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:10px 16px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-              <div style="font-size:0.82rem; font-weight:700; color:#1e293b; display:flex; align-items:center; gap:8px;">
-                <span style="width:22px; height:22px; border-radius:6px; background:#eff6ff; color:#2563eb; display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:800;">1</span>
+            <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:8px 14px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px;">
+              <div style="font-size:0.8rem; font-weight:700; color:#1e293b; display:flex; align-items:center; gap:8px;">
+                <span style="width:20px; height:20px; border-radius:5px; background:#eff6ff; color:#2563eb; display:flex; align-items:center; justify-content:center; font-size:0.72rem; font-weight:800;">1</span>
                 <span>Letter of Intent (Student Submission)</span>
-                <span style="font-size:0.7rem; font-weight:600; color:#059669; background:#dcfce7; padding:1px 6px; border-radius:4px;">Submitted</span>
+                <span style="font-size:0.68rem; font-weight:600; color:#059669; background:#dcfce7; padding:1px 6px; border-radius:4px;">Submitted</span>
               </div>
-              <button type="button" class="card-btn btn-sm" style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; font-size:0.75rem; padding:3px 10px; display:inline-flex; align-items:center; gap:5px;" onclick="if(CURRENT_REVIEW_AP) viewApplicantDocs(CURRENT_REVIEW_AP, 'intent')">
+              <button type="button" class="card-btn btn-sm" style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; font-size:0.72rem; padding:2px 8px; display:inline-flex; align-items:center; gap:4px;" onclick="if(CURRENT_REVIEW_AP) viewApplicantDocs(CURRENT_REVIEW_AP, 'intent')">
                 <i class="fa-solid fa-expand"></i> Center View
               </button>
             </div>
-            <div style="padding:14px 16px; display:flex; flex-direction:column; gap:10px;">
+            <div style="padding:10px 14px; display:flex; flex-direction:column; gap:8px;">
               <!-- Attached File Strip (if exists) -->
               <div id="reviewIntentFileBox"></div>
               
               <!-- Motivation Statement Block -->
               <div>
-                <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; color:#64748b; letter-spacing:0.3px; margin-bottom:4px;">Motivation Statement:</div>
-                <div id="reviewMotivationText" style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:10px 12px; font-size:0.85rem; line-height:1.55; color:#334155; white-space:pre-wrap; max-height:120px; overflow-y:auto;">
+                <div style="font-size:0.68rem; font-weight:700; text-transform:uppercase; color:#64748b; letter-spacing:0.3px; margin-bottom:4px;">Motivation Statement:</div>
+                <div id="reviewMotivationText" style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:10px 12px; font-size:0.82rem; line-height:1.55; color:#334155; white-space:pre-wrap; word-break:break-word;">
                   No motivation statement provided.
                 </div>
               </div>
@@ -1362,15 +1402,15 @@ if (!empty($selected_club_code) || !empty($selected_club_id)) {
 
           <!-- Section 2: Adviser Letter of Endorsement -->
           <div style="border:1px solid #e2e8f0; border-radius:12px; overflow:hidden;" id="reviewEndorsementSection">
-            <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:10px 16px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-              <div style="font-size:0.82rem; font-weight:700; color:#1e293b; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <span style="width:22px; height:22px; border-radius:6px; background:#ecfdf5; color:#059669; display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:800;">2</span>
+            <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:8px 14px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px;">
+              <div style="font-size:0.8rem; font-weight:700; color:#1e293b; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span style="width:20px; height:20px; border-radius:5px; background:#ecfdf5; color:#059669; display:flex; align-items:center; justify-content:center; font-size:0.72rem; font-weight:800;">2</span>
                 <span>Letter of Endorsement (Club Faculty Adviser)</span>
                 <span id="reviewEndorsementBadge"></span>
               </div>
               <div id="reviewEndorsementHeaderAction"></div>
             </div>
-            <div style="padding:14px 16px; display:flex; flex-direction:column; gap:10px;" id="reviewEndorsementBody">
+            <div style="padding:10px 14px; display:flex; flex-direction:column; gap:8px;" id="reviewEndorsementBody">
               <!-- Rendered dynamically: if pending, clean pending state card. If endorsed, file box + remarks -->
             </div>
           </div>
@@ -1462,7 +1502,7 @@ if (!empty($selected_club_code) || !empty($selected_club_id)) {
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
-        <div style="padding:20px; display:flex; flex-direction:column; gap:14px;">
+        <div style="padding:20px; display:flex; flex-direction:column; gap:14px; overflow-y:auto; flex:1 1 auto; min-height:0;">
           <p style="margin:0; font-size:0.85rem; color:#475569;">
             Returning application for <strong id="returnStudentName">-</strong>. Please specify the feedback or missing requirements for the student to revise.
           </p>
@@ -1498,8 +1538,8 @@ if (!empty($selected_club_code) || !empty($selected_club_id)) {
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
-        <form id="endorseApplicantForm" onsubmit="submitEndorsement(event)">
-          <div style="padding:20px; display:flex; flex-direction:column; gap:16px;">
+        <form id="endorseApplicantForm" onsubmit="submitEndorsement(event)" style="display:flex; flex-direction:column; flex:1 1 auto; min-height:0; overflow:hidden;">
+          <div style="padding:20px; display:flex; flex-direction:column; gap:16px; overflow-y:auto; flex:1 1 auto; min-height:0;">
             <input type="hidden" id="endorseAppId" name="id" value="" />
             
             <!-- Applicant Info Strip -->
@@ -1558,7 +1598,7 @@ if (!empty($selected_club_code) || !empty($selected_club_id)) {
 
     <!-- ── MODAL: Student Member Details & Oversight (SSC / Admin / Adviser) ── -->
     <div class="roster-modal-overlay" id="memberDetailsModal" style="display:none;">
-      <div class="roster-modal-card" style="max-width:680px; width:95%; border-radius:18px; overflow:hidden; box-shadow:0 25px 50px -12px rgba(15,23,42,0.35);">
+      <div class="roster-modal-card" style="max-width:680px; width:95%; height:min(88vh, 800px); max-height:90vh; border-radius:18px; overflow:hidden; box-shadow:0 25px 50px -12px rgba(15,23,42,0.35); display:flex; flex-direction:column;">
         
         <!-- Modal Header -->
         <div class="roster-modal-header" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #2563eb 100%); color:#ffffff; padding:18px 24px; border-bottom:1px solid rgba(255,255,255,0.12);">
@@ -1577,7 +1617,7 @@ if (!empty($selected_club_code) || !empty($selected_club_id)) {
         </div>
 
         <!-- Modal Body -->
-        <div class="roster-modal-body" style="padding:22px 24px; display:flex; flex-direction:column; gap:18px; max-height:calc(85vh - 120px); overflow-y:auto;">
+        <div class="roster-modal-body" style="padding:20px 24px;">
           
           <!-- Top Identity Card -->
           <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:18px 20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;">
@@ -2468,7 +2508,28 @@ if (!empty($selected_club_code) || !empty($selected_club_id)) {
       const btnBox = document.getElementById('reviewModalActionBtns');
       if (btnBox) {
         if (ap.current_status === 'Pending' || ap.current_status === 'Returned') {
-          if (CURRENT_USER_ROLE === 'club_adviser') {
+          if (CURRENT_USER_ROLE === 'student') {
+            // Student applicant perspective: authentic read-only workflow state
+            if (ap.current_status === 'Returned') {
+              btnBox.innerHTML = `
+                <span style="display:inline-flex; align-items:center; gap:6px; font-size:0.82rem; font-weight:700; color:#7e22ce; background:#faf5ff; border:1px solid #e9d5ff; padding:6px 14px; border-radius:8px;">
+                  <i class="fa-solid fa-rotate-left"></i> Returned for Revision &mdash; Please Update Requirements
+                </span>
+              `;
+            } else if (isEndorsed) {
+              btnBox.innerHTML = `
+                <span style="display:inline-flex; align-items:center; gap:6px; font-size:0.82rem; font-weight:700; color:#065f46; background:#d1fae5; border:1px solid #a7f3d0; padding:6px 14px; border-radius:8px;">
+                  <i class="fa-solid fa-stamp"></i> Endorsed by Adviser &mdash; Awaiting Final SSC Approval
+                </span>
+              `;
+            } else {
+              btnBox.innerHTML = `
+                <span style="display:inline-flex; align-items:center; gap:6px; font-size:0.82rem; font-weight:700; color:#92400e; background:#fef3c7; border:1px solid #fde68a; padding:6px 14px; border-radius:8px;">
+                  <i class="fa-solid fa-hourglass-half"></i> Stage 2: Awaiting Faculty Adviser Endorsement
+                </span>
+              `;
+            }
+          } else if (CURRENT_USER_ROLE === 'club_adviser') {
             if (!isEndorsed) {
               btnBox.innerHTML = `
                 <button type="button" class="card-btn" style="background:#d97706; color:#fff; font-weight:600; padding:8px 14px; border-radius:8px;" onclick="openReturnModal(${ap.id}, '${escapeHtml(ap.first_name + ' ' + ap.last_name)}')">
@@ -2490,7 +2551,14 @@ if (!empty($selected_club_code) || !empty($selected_club_id)) {
             }
           } else {
             // SSC or Admin (Approval Authority for the joined/applied club)
+            const endorseNotice = !isEndorsed ? `
+              <span style="font-size:0.75rem; color:#92400e; background:#fffbeb; border:1px solid #fcd34d; padding:6px 10px; border-radius:6px; display:inline-flex; align-items:center; gap:5px;" title="Adviser endorsement is pending for this applicant">
+                <i class="fa-solid fa-clock"></i> Pending Adviser Endorsement
+              </span>
+            ` : '';
+
             btnBox.innerHTML = `
+              ${endorseNotice}
               <button type="button" class="card-btn" style="background:#d97706; color:#fff; font-weight:600; padding:8px 14px; border-radius:8px;" onclick="openReturnModal(${ap.id}, '${escapeHtml(ap.first_name + ' ' + ap.last_name)}')">
                 <i class="fa-solid fa-rotate-left"></i> Return
               </button>
@@ -2503,8 +2571,17 @@ if (!empty($selected_club_code) || !empty($selected_club_id)) {
             `;
           }
         } else {
+          let stColor = '#166534';
+          let stBg = '#dcfce7';
+          let stBorder = '#86efac';
+          let stIcon = 'fa-solid fa-circle-check';
+          if (ap.current_status === 'Rejected') {
+            stColor = '#991b1b'; stBg = '#fee2e2'; stBorder = '#fca5a5'; stIcon = 'fa-solid fa-xmark';
+          }
           btnBox.innerHTML = `
-            <span style="font-size:0.82rem; color:#64748b; font-weight:600; align-self:center;">Decision finalized (${escapeHtml(ap.current_status)})</span>
+            <span style="display:inline-flex; align-items:center; gap:6px; font-size:0.82rem; font-weight:700; color:${stColor}; background:${stBg}; border:1px solid ${stBorder}; padding:6px 14px; border-radius:8px;">
+              <i class="${stIcon}"></i> Decision finalized (${escapeHtml(ap.current_status)})
+            </span>
           `;
         }
       }
@@ -2718,7 +2795,15 @@ if (!empty($selected_club_code) || !empty($selected_club_id)) {
             `;
           }
         } else {
+          const isEndorsedDoc = (ap.adviser_review === 'Endorsed' || ap.adviser_status === 'Endorsed');
+          const endorseNoticeDoc = !isEndorsedDoc ? `
+            <span style="font-size:0.75rem; color:#92400e; background:#fffbeb; border:1px solid #fcd34d; padding:5px 9px; border-radius:6px; display:inline-flex; align-items:center; gap:4px;" title="Adviser endorsement is pending for this applicant">
+              <i class="fa-solid fa-clock"></i> Pending Adviser Endorsement
+            </span>
+          ` : '';
+
           btns += `
+            ${endorseNoticeDoc}
             <button type="button" class="card-btn btn-sm" style="background:#fff; color:#dc2626; border:1px solid #fecaca; font-size:0.78rem; font-weight:600; padding:6px 12px; border-radius:6px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;" onclick="handleApplicationFromDocs(${ap.id}, 'reject')">
               <i class="fa-solid fa-xmark"></i> Reject
             </button>

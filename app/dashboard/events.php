@@ -2512,7 +2512,7 @@ require_once __DIR__ . '/../shared/sidebar.php';
               <th>Month Posted</th>
               <th>Host Organization</th>
               <th>Date &amp; Time</th>
-              <th>Venue &amp; Budget</th>
+              <th><?= $sess_role === 'student' ? 'Venue' : 'Venue &amp; Budget' ?></th>
               <th>Status</th>
               <th style="text-align:right; white-space:nowrap;">Actions</th>
             </tr>
@@ -2600,7 +2600,7 @@ require_once __DIR__ . '/../shared/sidebar.php';
                       <i class="fa-solid fa-qrcode"></i> QR
                     </button>
                   <?php endif; ?>
-                  <button type="button" class="event-act-btn event-act-btn-details" onclick="viewEvent(<?= htmlspecialchars(json_encode($ev)) ?>)" title="View Event Details &amp; Documentary Requirements">
+                  <button type="button" class="event-act-btn event-act-btn-details" onclick="viewEvent(<?= htmlspecialchars(json_encode($ev)) ?>)" title="<?= $sess_role === 'student' ? 'View Event Details' : 'View Event Details &amp; Documentary Requirements' ?>">
                     <i class="fa-solid fa-eye"></i> Details
                   </button>
                   <?php if (can_any(['events.review.ssc', 'events.approve.admin', 'events.create.own'])): ?>
@@ -2902,7 +2902,7 @@ require_once __DIR__ . '/../shared/sidebar.php';
   <div class="modal modal-lg" style="max-width:640px; padding:0; overflow:hidden; border-radius:16px;">
     <div class="modal-header" style="background: #1a3a8c; color:#fff; padding:18px 24px; display:flex; justify-content:space-between; align-items:center;">
       <h3 style="margin:0; font-size:1.1rem; color:#ffffff; font-weight:700; display:flex; align-items:center; gap:8px;">
-        <i class="fa-solid fa-calendar-check" style="color:#ffffff;"></i> Event Details &amp; Proposal Documents
+        <i class="fa-solid fa-calendar-check" style="color:#ffffff;"></i> <?= ($sess_role === 'student') ? 'Event Details' : 'Event Details &amp; Proposal Documents' ?>
       </h3>
       <button class="modal-close" onclick="closeModal('viewEventModal')" type="button" style="color:#ffffff; opacity:0.9; font-size:1.1rem; background:none; border:none; cursor:pointer;" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
     </div>
@@ -5051,6 +5051,7 @@ function viewEvent(ev) {
           <span style="font-size:0.72rem; font-weight:700; color:#64748b; text-transform:uppercase;">Venue</span>
           <div style="font-size:0.88rem; font-weight:600; color:#1e293b; margin-top:2px;"><i class="fa-solid fa-location-dot" style="color:#ef4444; margin-right:4px;"></i>${ev.venue || 'Campus Venue'}</div>
         </div>
+        ${ROLE !== 'student' ? `
         <div>
           <span style="font-size:0.72rem; font-weight:700; color:#64748b; text-transform:uppercase;">Budget Requirement</span>
           <div style="font-size:0.88rem; font-weight:700; color:${reqBudget ? '#047857' : '#64748b'}; margin-top:2px;">
@@ -5058,7 +5059,7 @@ function viewEvent(ev) {
               ? `<i class="fa-solid fa-coins" style="color:#059669; margin-right:4px;"></i>₱${Number(ev.budget_amount || 0).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2})}`
               : `<i class="fa-solid fa-circle-minus" style="margin-right:4px;"></i>No Budget Required (Optional)`}
           </div>
-        </div>
+        </div>` : ''}
         <div>
           <span style="font-size:0.72rem; font-weight:700; color:#64748b; text-transform:uppercase;">Target Program</span>
           <div style="font-size:0.88rem; font-weight:700; color:#2563eb; margin-top:2px;"><i class="fa-solid fa-graduation-cap" style="margin-right:4px;"></i>${targetCourseStr}</div>

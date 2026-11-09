@@ -11,9 +11,10 @@ SET NAMES utf8mb4;
 SET @OLD_TIME_ZONE = @@TIME_ZONE;
 SET TIME_ZONE = '+00:00';
 
--- Ensure target database exists and is selected
-CREATE DATABASE IF NOT EXISTS `sms_db` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `sms_db`;
+-- Target database selection (commented out for universal cloud & local deployment compatibility)
+-- If executing manually in phpMyAdmin on a brand new local instance without a database selected, uncomment below:
+-- CREATE DATABASE IF NOT EXISTS `sms_db` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- USE `sms_db`;
 
 --
 -- Table structure and data for table `system_settings`

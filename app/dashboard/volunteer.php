@@ -320,7 +320,8 @@ if ($sess_role === 'club_adviser' && $adviser_club) {
 
     // Pending applications for this adviser's club
     $p_stmt = $conn->prepare("
-        SELECT vl.*, e.venue, e.event_date, c.name as club_name, c.code as club_code
+        SELECT vl.*, e.venue, e.event_date, c.name as club_name, c.code as club_code,
+               c.category as club_category, c.program as club_program, c.sub_category as club_sub_category
         FROM volunteer_logs vl
         JOIN events e ON e.id = vl.event_id
         JOIN clubs c ON c.id = vl.club_id
@@ -333,12 +334,17 @@ if ($sess_role === 'club_adviser' && $adviser_club) {
         $p_res = $p_stmt->get_result();
         while ($pr = $p_res->fetch_assoc()) {
             // Check student program match against adviser's club
+            $pr_club_cat = $pr['club_category'] ?? ($adviser_club['category'] ?? '');
+            $pr_club_prog = $pr['club_program'] ?? ($adviser_club['program'] ?? '');
+            $pr_club_sub = $pr['club_sub_category'] ?? ($adviser_club['sub_category'] ?? '');
+            $pr_target_prog = !empty($pr_club_prog) ? $pr_club_prog : 'All';
+
             $pr_elig = checkVolunteerEligibility(
-                $pr['course'],
-                $adviser_club['category'],
-                $adviser_club['program'],
-                $adviser_club['sub_category'],
-                $adviser_club['program'] ?: 'All'
+                $pr['course'] ?? '',
+                $pr_club_cat,
+                $pr_club_prog,
+                $pr_club_sub,
+                $pr_target_prog
             );
             $pr['program_match'] = $pr_elig['eligible'];
             $pr['program_match_note'] = $pr_elig['reason'];
@@ -381,11 +387,11 @@ if ($sess_role === 'club_adviser' && $adviser_club) {
     if ($p_res) {
         while ($pr = $p_res->fetch_assoc()) {
             $pr_elig = checkVolunteerEligibility(
-                $pr['course'],
-                $pr['club_category'],
-                $pr['club_program'],
-                $pr['club_sub_category'],
-                $pr['club_program'] ?: 'All'
+                $pr['course'] ?? '',
+                $pr['club_category'] ?? '',
+                $pr['club_program'] ?? '',
+                $pr['club_sub_category'] ?? '',
+                !empty($pr['club_program']) ? $pr['club_program'] : 'All'
             );
             $pr['program_match'] = $pr_elig['eligible'];
             $pr['program_match_note'] = $pr_elig['reason'];
