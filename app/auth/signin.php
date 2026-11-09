@@ -100,16 +100,6 @@ if ($mfa_pending && !empty($conn) && !empty($db_connected)) {
           </div>
           <?php endif; ?>
 
-          <?php if (empty($db_connected)): ?>
-          <div class="auth-warning" style="background:#fef2f2; border:1px solid #f87171; color:#991b1b; padding:12px 14px; border-radius:10px; font-size:0.86rem; font-weight:500; display:flex; align-items:flex-start; gap:10px; margin-bottom:18px; text-align:left; line-height:1.45; box-shadow:0 2px 6px rgba(239,68,68,0.15);">
-            <i class="fa-solid fa-triangle-exclamation" style="color:#ef4444; font-size:1.2rem; flex-shrink:0; margin-top:2px;"></i>
-            <div>
-              <strong style="display:block; margin-bottom:4px; color:#b91c1c;">Database Not Connected</strong>
-              Running on Railway? Make sure your Web service has your MySQL variables linked (<code>MYSQL_URL</code> or <code>MYSQLHOST</code>), or <a href="../shared/setup.php" style="color:#1d4ed8; text-decoration:underline; font-weight:600;">open Setup &amp; DB Configuration</a> to connect.
-            </div>
-          </div>
-          <?php endif; ?>
-
           <div class="auth-error" id="authError" style="display:none;"></div>
 
           <form id="signinForm" style="width:100%">
@@ -260,11 +250,8 @@ if ($mfa_pending && !empty($conn) && !empty($db_connected)) {
     });
 
     function showAuthError(msg) {
-      if (typeof msg === 'string' && (msg.includes('<a ') || msg.includes('setup.php') || msg.includes('Database connection'))) {
-        authError.innerHTML = msg;
-      } else {
-        authError.textContent = msg;
-      }
+      const cleanMsg = (typeof msg === 'string') ? msg.replace(/<[^>]*>/g, '').trim() : 'An error occurred. Please try again.';
+      authError.textContent = cleanMsg;
       authError.style.display = 'block';
     }
 

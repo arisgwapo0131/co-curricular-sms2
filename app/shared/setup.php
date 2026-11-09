@@ -12,6 +12,13 @@ $configFile = __DIR__ . '/db.php';
 require_once $configFile;
 require_once __DIR__ . '/org_db_manager.php';
 
+// Block web execution when deployed in production or cloud container environments
+$is_production = (!empty($is_railway) || getenv('APP_ENV') === 'production' || (defined('APP_ENV') && APP_ENV === 'production'));
+if (php_sapi_name() !== 'cli' && $is_production && empty($_SESSION['user_id'])) {
+    http_response_code(403);
+    die("Access denied. The database installer is disabled in production deployment. Database initialization is automated via CLI.");
+}
+
 $messages = [];
 $errors   = [];
 

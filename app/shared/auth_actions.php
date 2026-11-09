@@ -98,11 +98,7 @@ function requireSession(): void
 }
 
 if (!$conn || !$db_connected) {
-    $setupUrl = '../shared/setup.php';
-    $cloud_env_hint = (!empty($is_railway) || getenv('RAILWAY_ENVIRONMENT') || getenv('RAILWAY_PROJECT_ID'))
-        ? "Please link your Railway MySQL service variables (e.g. reference \${{MySQL.MYSQL_URL}}), or <a href=\"{$setupUrl}\" style=\"color:#2563eb;text-decoration:underline;font-weight:bold;\">click here to configure database</a>."
-        : "Please verify DB_HOST, DB_USER, DB_PASS, and DB_NAME environment variables, or <a href=\"{$setupUrl}\" style=\"color:#2563eb;text-decoration:underline;font-weight:bold;\">configure via Setup</a>.";
-    respond(false, "Database connection not available (" . ($db_error ?: 'check host') . "). {$cloud_env_hint}");
+    respond(false, 'Database service is currently unreachable or initializing. Please try again in a few moments.');
 }
 
 try {
