@@ -238,8 +238,20 @@ header('Content-Type: text/html; charset=utf-8');
         <strong style="color:#f87171;">Connection Failed:</strong>
         <p style="color:#fecaca; margin:8px 0 0 0;"><?= htmlspecialchars($status['error']) ?></p>
       </div>
+
+      <div style="background:#0f172a; border:1px solid #334155; padding:18px; border-radius:10px; margin-top:16px;">
+        <h4 style="margin:0 0 10px 0; color:#38bdf8;">How to Resolve for Railway / Cloud Deployment:</h4>
+        <ol style="margin:0; padding-left:20px; color:#cbd5e1; font-size:0.9rem; line-height:1.7;">
+          <li>In your <a href="https://railway.app" target="_blank" style="color:#60a5fa; text-decoration:underline;">Railway Project Canvas</a>, ensure you have added a <strong>MySQL Database</strong> service (click <em>+ New &rarr; Database &rarr; Add MySQL</em>).</li>
+          <li>Click on your <strong>Web Service</strong> card (the one running this app), and go to the <strong>Variables</strong> tab.</li>
+          <li>Click <strong>New Variable &rarr; Add Reference</strong>, and select <code>MYSQL_URL</code> (which maps to <code>${{MySQL.MYSQL_URL}}</code>).</li>
+          <li>Railway will automatically redeploy and link the database to this web service within 1-2 minutes!</li>
+        </ol>
+      </div>
+
       <div style="margin-top:20px;">
         <a href="app/shared/setup.php" class="btn" style="background:#d97706;">Run System Setup &rarr;</a>
+        <a href="db_check.php?format=json" class="btn" style="background:#475569; margin-left:8px;">View Raw JSON</a>
       </div>
     <?php endif; ?>
   </div>

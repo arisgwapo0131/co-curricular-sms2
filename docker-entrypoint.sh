@@ -10,6 +10,17 @@ PORT="${PORT:-80}"
 
 echo "🚀 Configuring Apache on port ${PORT}..."
 
+# Check Railway environment variables
+if [ -n "$RAILWAY_ENVIRONMENT" ] || [ -n "$RAILWAY_PROJECT_ID" ]; then
+    echo "🚂 Railway environment detected."
+    if [ -z "$MYSQL_URL" ] && [ -z "$MYSQLHOST" ]; then
+        echo "⚠️  [WARNING] MYSQL_URL or MYSQLHOST is not set in this Railway Web Service!"
+        echo "👉  TO FIX: In Railway, go to this Web Service -> Variables -> Add Reference -> select MYSQL_URL."
+    else
+        echo "✅ Database connection variables detected in environment."
+    fi
+fi
+
 # Ensure only mpm_prefork is loaded for mod_php compatibility on Railway
 a2dismod mpm_event mpm_worker >/dev/null 2>&1 || true
 a2enmod mpm_prefork >/dev/null 2>&1 || true

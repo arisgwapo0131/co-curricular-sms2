@@ -13,6 +13,23 @@ if (function_exists('mysqli_report')) {
     @mysqli_report(MYSQLI_REPORT_OFF);
 }
 
+// Robust environment helper checking getenv, $_ENV, and $_SERVER
+if (!function_exists('bcp_get_env')) {
+    function bcp_get_env(string $key, ?string $default = null): ?string {
+        $val = getenv($key);
+        if ($val !== false && $val !== null && $val !== '') {
+            return (string)$val;
+        }
+        if (isset($_ENV[$key]) && $_ENV[$key] !== '') {
+            return (string)$_ENV[$key];
+        }
+        if (isset($_SERVER[$key]) && $_SERVER[$key] !== '') {
+            return (string)$_SERVER[$key];
+        }
+        return $default;
+    }
+}
+
 // 1. Load environment variables from .env if available
 $envFile = dirname(__DIR__, 2) . '/.env';
 if (file_exists($envFile)) {
@@ -36,85 +53,107 @@ if (file_exists($envFile)) {
 }
 
 // 2. Parse DATABASE_URL / MYSQL_URL / MYSQL_PRIVATE_URL / MYSQL_PUBLIC_URL if provided by Railway or cloud platforms
-$db_url = getenv('MYSQL_URL') ?: (getenv('MYSQL_PRIVATE_URL') ?: (getenv('MYSQL_PUBLIC_URL') ?: (getenv('DATABASE_URL') ?: (getenv('CLEARDB_DATABASE_URL') ?: getenv('JAWSDB_URL')))));
+$db_url = bcp_get_env('MYSQL_URL')
+    ?: (bcp_get_env('MYSQL_PRIVATE_URL')
+    ?: (bcp_get_env('MYSQL_PUBLIC_URL')
+    ?: (bcp_get_env('DATABASE_URL')
+    ?: (bcp_get_env('DATABASE_PRIVATE_URL')
+    ?: (bcp_get_env('DATABASE_PUBLIC_URL')
+    ?: (bcp_get_env('CLEARDB_DATABASE_URL')
+    ?: bcp_get_env('JAWSDB_URL')))))));
 
 // Detect Railway environment
 $is_railway = (bool)(
-    getenv('RAILWAY_ENVIRONMENT') ||
-    getenv('RAILWAY_PROJECT_ID') ||
-    getenv('RAILWAY_SERVICE_NAME') ||
-    getenv('RAILWAY_PUBLIC_DOMAIN') ||
-    getenv('RAILWAY_STATIC_URL') ||
-    getenv('RAILWAY_DEPLOYMENT_ID') ||
-    getenv('RAILWAY_GIT_COMMIT_SHA') ||
-    (getenv('MYSQLHOST') && strpos(getenv('MYSQLHOST'), 'railway') !== false) ||
+    bcp_get_env('RAILWAY_ENVIRONMENT') ||
+    bcp_get_env('RAILWAY_ENVIRONMENT_ID') ||
+    bcp_get_env('RAILWAY_ENVIRONMENT_NAME') ||
+    bcp_get_env('RAILWAY_PROJECT_ID') ||
+    bcp_get_env('RAILWAY_SERVICE_NAME') ||
+    bcp_get_env('RAILWAY_SERVICE_ID') ||
+    bcp_get_env('RAILWAY_PUBLIC_DOMAIN') ||
+    bcp_get_env('RAILWAY_STATIC_URL') ||
+    bcp_get_env('RAILWAY_DEPLOYMENT_ID') ||
+    bcp_get_env('RAILWAY_GIT_COMMIT_SHA') ||
+    (bcp_get_env('MYSQLHOST') && strpos(bcp_get_env('MYSQLHOST'), 'railway') !== false) ||
     ($db_url && strpos($db_url, 'railway') !== false)
 );
 
+// 3. Normalize all database environment variables & cloud provider aliases (Railway, MariaDB, Docker)
+$host = bcp_get_env('MYSQLHOST') ?: (bcp_get_env('DB_HOST') ?: (bcp_get_env('MARIADB_HOST') ?: (bcp_get_env('MYSQL_HOST') ?: (bcp_get_env('DATABASE_HOST') ?: (bcp_get_env('DB_HOSTNAME') ?: '127.0.0.1')))));
+$port = (int)(bcp_get_env('MYSQLPORT') ?: (bcp_get_env('DB_PORT') ?: (bcp_get_env('MARIADB_PORT') ?: (bcp_get_env('MYSQL_PORT') ?: (bcp_get_env('DATABASE_PORT') ?: 3306)))));
+$user = bcp_get_env('MYSQLUSER') ?: (bcp_get_env('DB_USER') ?: (bcp_get_env('MARIADB_USER') ?: (bcp_get_env('DB_USERNAME') ?: (bcp_get_env('MYSQL_USER') ?: (bcp_get_env('DATABASE_USER') ?: 'root')))));
+$pass = bcp_get_env('MYSQLPASSWORD');
+if ($pass === null || $pass === '') {
+    $pass = bcp_get_env('MYSQL_ROOT_PASSWORD');
+}
+if ($pass === null || $pass === '') {
+    $pass = bcp_get_env('DB_PASS');
+}
+if ($pass === null || $pass === '') {
+    $pass = bcp_get_env('MARIADB_PASSWORD') ?: (bcp_get_env('DB_PASSWORD') ?: (bcp_get_env('MYSQL_PASSWORD') ?: (bcp_get_env('DATABASE_PASSWORD') ?: '')));
+}
+
+$cloud_db = bcp_get_env('MYSQLDATABASE') ?: (bcp_get_env('MARIADB_DATABASE') ?: (bcp_get_env('MYSQL_DATABASE') ?: ''));
+$explicit_db = bcp_get_env('DB_NAME') ?: (bcp_get_env('DB_DATABASE') ?: '');
+
+// Directly assign credentials from parsed URL if present
 if ($db_url && strpos($db_url, '://') !== false) {
     $parsed_url = parse_url($db_url);
     if ($parsed_url) {
         if (!empty($parsed_url['host'])) {
-            putenv('DB_HOST=' . $parsed_url['host']);
-            $_ENV['DB_HOST'] = $parsed_url['host'];
+            $host = $parsed_url['host'];
+            putenv('DB_HOST=' . $host);
+            $_ENV['DB_HOST'] = $host;
+            $_SERVER['DB_HOST'] = $host;
         }
         if (!empty($parsed_url['port'])) {
-            putenv('DB_PORT=' . $parsed_url['port']);
-            $_ENV['DB_PORT'] = (string)$parsed_url['port'];
+            $port = (int)$parsed_url['port'];
+            putenv('DB_PORT=' . (string)$port);
+            $_ENV['DB_PORT'] = (string)$port;
+            $_SERVER['DB_PORT'] = (string)$port;
         }
         if (!empty($parsed_url['user'])) {
-            $u_dec = rawurldecode($parsed_url['user']);
-            putenv('DB_USER=' . $u_dec);
-            $_ENV['DB_USER'] = $u_dec;
+            $user = rawurldecode($parsed_url['user']);
+            putenv('DB_USER=' . $user);
+            $_ENV['DB_USER'] = $user;
+            $_SERVER['DB_USER'] = $user;
         }
         if (isset($parsed_url['pass'])) {
-            $p_dec = rawurldecode($parsed_url['pass']);
-            putenv('DB_PASS=' . $p_dec);
-            $_ENV['DB_PASS'] = $p_dec;
+            $pass = rawurldecode($parsed_url['pass']);
+            putenv('DB_PASS=' . $pass);
+            $_ENV['DB_PASS'] = $pass;
+            $_SERVER['DB_PASS'] = $pass;
         }
         if (!empty($parsed_url['path'])) {
             $d_dec = ltrim($parsed_url['path'], '/');
             if (!empty($d_dec) && $d_dec !== 'test') {
+                $cloud_db = $d_dec;
                 putenv('DB_NAME=' . $d_dec);
                 $_ENV['DB_NAME'] = $d_dec;
+                $_SERVER['DB_NAME'] = $d_dec;
             }
         }
     }
 }
 
-// 3. Normalize all database environment variables & cloud provider aliases (Railway, MariaDB, Docker)
-$host = getenv('MYSQLHOST') ?: (getenv('DB_HOST') ?: (getenv('MARIADB_HOST') ?: (getenv('MYSQL_HOST') ?: (getenv('DATABASE_HOST') ?: (getenv('DB_HOSTNAME') ?: '127.0.0.1')))));
-$port = (int)(getenv('MYSQLPORT') ?: (getenv('DB_PORT') ?: (getenv('MARIADB_PORT') ?: (getenv('MYSQL_PORT') ?: (getenv('DATABASE_PORT') ?: 3306)))));
-$user = getenv('MYSQLUSER') ?: (getenv('DB_USER') ?: (getenv('MARIADB_USER') ?: (getenv('DB_USERNAME') ?: (getenv('MYSQL_USER') ?: (getenv('DATABASE_USER') ?: 'root')))));
-$pass = getenv('MYSQLPASSWORD');
-if ($pass === false || $pass === null) {
-    $pass = getenv('DB_PASS');
-}
-if ($pass === false || $pass === null) {
-    $pass = getenv('MARIADB_PASSWORD') ?: (getenv('DB_PASSWORD') ?: (getenv('MYSQL_PASSWORD') ?: (getenv('DATABASE_PASSWORD') ?: '')));
-}
-
 // Detect if explicit Railway / Cloud DB environment variables are present
 $has_cloud_env = (bool)(
     $is_railway ||
-    getenv('MYSQL_URL') ||
-    getenv('MYSQL_PUBLIC_URL') ||
-    getenv('DATABASE_URL') ||
-    getenv('MYSQLHOST') ||
-    getenv('RAILWAY_ENVIRONMENT') ||
-    getenv('RAILWAY_PROJECT_ID') ||
-    (getenv('DB_HOST') && !in_array(getenv('DB_HOST'), ['127.0.0.1', 'localhost'], true))
+    bcp_get_env('MYSQL_URL') ||
+    bcp_get_env('MYSQL_PUBLIC_URL') ||
+    bcp_get_env('DATABASE_URL') ||
+    bcp_get_env('MYSQLHOST') ||
+    bcp_get_env('RAILWAY_ENVIRONMENT') ||
+    bcp_get_env('RAILWAY_PROJECT_ID') ||
+    (bcp_get_env('DB_HOST') && !in_array(bcp_get_env('DB_HOST'), ['127.0.0.1', 'localhost'], true))
 );
-
-$cloud_db = getenv('MYSQLDATABASE') ?: (getenv('MARIADB_DATABASE') ?: (getenv('MYSQL_DATABASE') ?: ''));
-$explicit_db = getenv('DB_NAME') ?: (getenv('DB_DATABASE') ?: '');
 
 if ($has_cloud_env && !empty($cloud_db)) {
     $db = $cloud_db;
 } elseif (!empty($explicit_db)) {
     $db = $explicit_db;
 } else {
-    $db = $cloud_db ?: (getenv('DATABASE_NAME') ?: 'sms_db');
+    $db = $cloud_db ?: (bcp_get_env('DATABASE_NAME') ?: 'sms_db');
     if (empty($db) || $db === 'test') {
         $db = 'sms_db';
     }
@@ -444,9 +483,13 @@ if ($db_connected && $conn && !$conn->connect_error) {
             if (!headers_sent()) {
                 header('Content-Type: application/json; charset=utf-8');
             }
+            $hint = '';
+            if ($is_railway && empty(bcp_get_env('MYSQL_URL')) && empty(bcp_get_env('MYSQLHOST'))) {
+                $hint = " Tip: Link your MySQL service in Railway (go to Web Service -> Variables -> Add Reference -> MYSQL_URL).";
+            }
             echo json_encode([
                 'success' => false,
-                'message' => "Database service is currently unreachable or initializing. Please try again in a few moments."
+                'message' => "Database service is currently unreachable or initializing." . $hint . " Please check /db_check.php for details."
             ]);
             exit;
         }

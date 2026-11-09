@@ -98,7 +98,11 @@ function requireSession(): void
 }
 
 if (!$conn || !$db_connected) {
-    respond(false, 'Database service is currently unreachable or initializing. Please try again in a few moments.');
+    $hint = '';
+    if ((getenv('RAILWAY_ENVIRONMENT') || getenv('RAILWAY_PROJECT_ID')) && !getenv('MYSQL_URL') && !getenv('MYSQLHOST')) {
+        $hint = ' Tip: Link your MySQL service in Railway (go to Web Service -> Variables -> Add Reference -> MYSQL_URL).';
+    }
+    respond(false, 'Database service is currently unreachable or initializing.' . $hint . ' Visit /db_check.php for real-time diagnostics.');
 }
 
 try {
