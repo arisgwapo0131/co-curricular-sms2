@@ -238,7 +238,7 @@ if ($mfa_pending && !empty($conn) && !empty($db_connected)) {
         if (data && data.success) {
           if (data.mfa_required) {
             // Smoothly switch to Multi-Factor Authentication view
-            switchToMfaView(data.email_masked, data.expires_in, data.resend_cooldown);
+            switchToMfaView(data.email_masked, data.expires_in, data.resend_cooldown, data.mail_delivered, data.mail_error, data.preview_code);
           } else {
             // Direct sign in
             try {
@@ -295,12 +295,16 @@ if ($mfa_pending && !empty($conn) && !empty($db_connected)) {
     let remainingExpirySeconds = <?= (int)$mfa_remaining_seconds ?>;
     let resendCooldownSeconds = 0;
 
-    function switchToMfaView(maskedEmail, expiresIn, resendCooldown) {
+    function switchToMfaView(maskedEmail, expiresIn, resendCooldown, mailDelivered, mailError, previewCode) {
       credentialsSection.style.display = 'none';
       mfaSection.style.display = 'flex';
       mfaEmailMasked.textContent = maskedEmail;
       mfaError.style.display = 'none';
       mfaSuccess.style.display = 'none';
+
+      if (mailDelivered === false) {
+        showMfaError('Notice: Delivery to email provider took longer than expected or was filtered. Please check your Spam/Junk folder or click Resend Code.' + (previewCode ? ' [Testing Code: ' + previewCode + ']' : ''));
+      }
 
       clearOtpBoxes();
 
@@ -559,7 +563,11 @@ if ($mfa_pending && !empty($conn) && !empty($db_connected)) {
         const data = await fetch('../shared/auth_actions.php', { method: 'POST', body: fd }).then(r => r.json());
 
         if (data.success) {
-          showMfaSuccess('A fresh 6-digit code has been dispatched to your email.');
+          if (data.mail_delivered === false) {
+            showMfaError('Notice: Verification code generated, but email dispatch may be delayed. Check your Spam folder.' + (data.preview_code ? ' [Testing Code: ' + data.preview_code + ']' : ''));
+          } else {
+            showMfaSuccess('A fresh 6-digit code has been dispatched to your email.');
+          }
           clearOtpBoxes();
           startExpiryCountdown(data.expires_in || 300);
           startResendCooldown(data.resend_cooldown || 60);

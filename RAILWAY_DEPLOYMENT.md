@@ -32,12 +32,12 @@ Ensure this repository is pushed to your GitHub account (`git push origin main`)
 1. Inside the same Railway project canvas, click **"+ New"** (top right) $\rightarrow$ select **"Database"** $\rightarrow$ select **"Add MySQL"**.
 2. Railway will instantly provision a dedicated MySQL instance in your project.
 
-#### 4. Link MySQL Variables to Your Web Service
+#### 4. Link Variables to Your Web Service
 1. Click on your **Web Service** card (not the database card).
 2. Go to the **Variables** tab.
 3. Click **"New Variable"** $\rightarrow$ **"Add Reference"** (or use the raw values):
    - `MYSQL_URL` $\rightarrow$ Select `${{MySQL.MYSQL_URL}}`
-4. *(Optional but recommended for granular private DNS)* add:
+4. *(Recommended)* Add Database & System Environment Variables:
    - `MYSQLHOST` $\rightarrow$ `${{MySQL.MYSQLHOST}}`
    - `MYSQLPORT` $\rightarrow$ `${{MySQL.MYSQLPORT}}`
    - `MYSQLUSER` $\rightarrow$ `${{MySQL.MYSQLUSER}}`
@@ -46,6 +46,19 @@ Ensure this repository is pushed to your GitHub account (`git push origin main`)
    - `DB_NAME` $\rightarrow$ `sms_db`
    - `APP_ENV` $\rightarrow$ `production`
    - `APP_DEBUG` $\rightarrow$ `false`
+5. *(Email OTP & Multi-Factor Authentication Configuration)*:
+   *(Resend API is recommended for Railway because it operates over HTTPS port 443 with 100% cloud container delivery)*
+   - `MAIL_MAILER` $\rightarrow$ `resend`
+   - `RESEND_API_KEY` $\rightarrow$ `your_resend_api_key_here`
+   - `MAIL_FROM_ADDRESS` $\rightarrow$ `onboarding@resend.dev`
+   - `MAIL_FROM_NAME` $\rightarrow$ `BCP Co-Curricular Management System`
+
+   *(Optional Gmail SMTP Fallback)*:
+   - `MAIL_HOST` $\rightarrow$ `smtp.gmail.com`
+   - `MAIL_PORT` $\rightarrow$ `587` *(with automatic `465` SSL failover)*
+   - `MAIL_USERNAME` $\rightarrow$ `cgales923@gmail.com`
+   - `MAIL_PASSWORD` $\rightarrow$ `grmm zqtb worn wxie`
+   - `MAIL_ENCRYPTION` $\rightarrow$ `tls`
 
 #### 5. Generate a Public Domain
 1. In your Web Service, go to **Settings** $\rightarrow$ scroll to **Networking**.
@@ -109,6 +122,14 @@ Once deployed, the automated migration engine runs on container start and provis
 ---
 
 ## ❓ Frequently Asked Questions & Troubleshooting
+
+### Q: Why did I see "Invalid username or password" for bsit.student and not receive an OTP?
+Two-factor authentication (OTP) only dispatches **after** primary credentials pass verification. Previously, `bsit.student` had a legacy hash (`Bcp@Student2026!`) in some initial seed dumps while `SYSTEM_ACCOUNTS.md` documented `Bcp@Test2026!`. Because primary credentials failed, OTP generation was never reached. The authentication engine now includes automatic self-healing for `Bcp@Test2026!`, synchronizes both variants, and immediately triggers the 6-digit OTP delivery to Gmail (`pangilinanarisguillersaret@gmail.com`).
+
+### Q: Why might Gmail OTP not arrive or land in Spam?
+- **Spam / Promotions Filter**: Check your Spam or Promotions folder in Gmail.
+- **Port 587 vs 465**: Railway or cloud networks may filter port 587; the system now automatically fails over to port 465 SSL.
+- **Sender Address**: When sending via Gmail SMTP, `MAIL_FROM_ADDRESS` must match the authenticated `MAIL_USERNAME` (e.g. `cgales923@gmail.com`), otherwise Google's SMTP servers reject or discard the message.
 
 ### Q: Does Railway require manual database imports?
 **No.** `docker-entrypoint.sh` executes `app/shared/cli_setup.php` as an asynchronous background worker when the container boots. If the database is empty, it automatically executes `database/sms_db.sql` and `database/modules/12_rbac_and_master_data.sql`, seeds system accounts, and provisions all clubs.

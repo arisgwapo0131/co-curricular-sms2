@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS `users` (
 
 -- Official Initial Seed Accounts (from SYSTEM_ACCOUNTS.md)
 INSERT INTO `users` (`id`, `username`, `email`, `first_name`, `last_name`, `password_hash`, `role`) VALUES
-(1, 'bsit.student', 'pangilinanarisguillersaret@gmail.com', 'Juan', 'Santos', '$2y$10$WgA7Ak6OdJxwZfeEiOvXQ.gCIPq0qHGGO77VH2/O6UESVPeCt/0yK', 'student'),
+(1, 'bsit.student', 'pangilinanarisguillersaret@gmail.com', 'Juan', 'Santos', '$2y$10$lIyNFXwenxQGo4/xAOriouxP95R0alUPfQUrjNi2LIhsI35hiWT9i', 'student'),
 (2, 'bshm.student', 'bshm@student.bcp.edu.ph', 'Maria', 'Cruz', '$2y$10$hOurKEX9y7pG8Kc8UQgBnugBGPJGqda3QdCJkWiNMGGM.vOjjoTSe', 'student'),
 (3, 'bsais.student', 'bsais@student.bcp.edu.ph', 'Jose', 'Reyes', '$2y$10$hOurKEX9y7pG8Kc8UQgBnugBGPJGqda3QdCJkWiNMGGM.vOjjoTSe', 'student'),
 (4, 'bstm.student', 'bstm@student.bcp.edu.ph', 'Ana', 'Dela Cruz', '$2y$10$hOurKEX9y7pG8Kc8UQgBnugBGPJGqda3QdCJkWiNMGGM.vOjjoTSe', 'student'),

@@ -96,18 +96,18 @@ function auto_initialize_database(mysqli $conn): bool {
             }
         }
 
-        // Always ensure system accounts & clubs from SYSTEM_ACCOUNTS.md are active and populated
+        // Always ensure system accounts & clubs from SYSTEM_ACCOUNTS.md are active and passwords synchronized
+        try {
+            if (function_exists('seedSystemAccountsAndClubs')) {
+                seedSystemAccountsAndClubs($conn, $messages, $errors);
+            }
+        } catch (Throwable $e) {
+            error_log("Seed accounts warning: " . $e->getMessage());
+        }
+
         $uCount = @$conn->query("SELECT COUNT(*) FROM users");
         $totalUsers = $uCount ? (int)$uCount->fetch_row()[0] : 0;
         if ($totalUsers < 50) {
-            try {
-                if (function_exists('seedSystemAccountsAndClubs')) {
-                    seedSystemAccountsAndClubs($conn, $messages, $errors);
-                }
-            } catch (Throwable $e) {
-                error_log("Seed accounts warning: " . $e->getMessage());
-            }
-
             try {
                 if (function_exists('seedLiveSystemData')) {
                     seedLiveSystemData($conn, $messages, $errors);

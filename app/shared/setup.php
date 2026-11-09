@@ -458,15 +458,17 @@ function patchSystemDatabaseSchemas(mysqli $conn, array &$messages, array &$erro
         'mfa_expiry_minutes'            => '10',
         'mfa_resend_cooldown'           => '60',
         'mfa_allow_dev_preview'         => '0',
-        'smtp_host'                     => 'smtp.gmail.com',
-        'smtp_port'                     => '587',
-        'smtp_user'                     => '',
-        'smtp_pass'                     => '',
-        'smtp_crypto'                   => 'tls',
-        'mail_from_name'                => 'BCP Co-Curricular Management System',
-        'mail_from_email'               => 'no-reply@bcp.edu.ph'
+        'mail_mailer'                   => getenv('MAIL_MAILER') ?: 'resend',
+        'resend_api_key'                => getenv('RESEND_API_KEY') ?: '',
+        'smtp_host'                     => getenv('MAIL_HOST') ?: (getenv('SMTP_HOST') ?: 'smtp.gmail.com'),
+        'smtp_port'                     => getenv('MAIL_PORT') ?: (getenv('SMTP_PORT') ?: '587'),
+        'smtp_user'                     => getenv('MAIL_USERNAME') ?: (getenv('SMTP_USER') ?: 'cgales923@gmail.com'),
+        'smtp_pass'                     => getenv('MAIL_PASSWORD') ?: (getenv('SMTP_PASS') ?: 'grmm zqtb worn wxie'),
+        'smtp_crypto'                   => getenv('MAIL_ENCRYPTION') ?: (getenv('SMTP_CRYPTO') ?: 'tls'),
+        'mail_from_name'                => 'Bestlink College of the Philippines',
+        'mail_from_email'               => getenv('MAIL_FROM_ADDRESS') ?: (getenv('SMTP_FROM_EMAIL') ?: 'cgales923@gmail.com')
     ];
-    $s_stmt = $conn->prepare("INSERT IGNORE INTO system_settings (setting_key, setting_value) VALUES (?, ?)");
+    $s_stmt = $conn->prepare("INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = IF(setting_value = '' OR setting_value IS NULL, VALUES(setting_value), setting_value)");
     if ($s_stmt) {
         foreach ($default_settings as $sk => $sv) {
             $s_stmt->bind_param('ss', $sk, $sv);

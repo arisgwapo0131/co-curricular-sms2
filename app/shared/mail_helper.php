@@ -28,6 +28,102 @@ function mask_email(string $email): string {
 }
 
 /**
+ * Dispatch an email via the Resend REST API (HTTPS port 443).
+ * Zero-configuration, zero-port-blocking transport ideal for Railway & cloud containers.
+ */
+function send_via_resend_api(
+    string $api_key,
+    string $from_email,
+    string $from_name,
+    string $to_email,
+    string $subject,
+    string $html_body,
+    string $text_body = ''
+): array {
+    $api_key = trim($api_key);
+    if (empty($api_key)) {
+        return ['success' => false, 'method' => 'resend', 'message' => 'Resend API key is missing.'];
+    }
+
+    $from = !empty($from_name) ? "{$from_name} <{$from_email}>" : $from_email;
+
+    $payload = [
+        'from'    => $from,
+        'to'      => [$to_email],
+        'subject' => $subject,
+        'html'    => $html_body
+    ];
+    if (!empty($text_body)) {
+        $payload['text'] = $text_body;
+    }
+
+    $jsonPayload = json_encode($payload);
+
+    // 1. Primary: cURL
+    if (function_exists('curl_init')) {
+        $ch = curl_init('https://api.resend.com/emails');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $jsonPayload,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: Bearer ' . $api_key,
+                'Content-Type: application/json',
+                'User-Agent: BCP-Portal/2.0'
+            ],
+            CURLOPT_TIMEOUT        => 8,
+            CURLOPT_SSL_VERIFYPEER => true
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlErr  = curl_error($ch);
+        curl_close($ch);
+
+        if (!$curlErr && $httpCode >= 200 && $httpCode < 300) {
+            $resData = @json_decode($response, true);
+            $emailId = $resData['id'] ?? 'sent';
+            return [
+                'success' => true,
+                'method'  => 'resend',
+                'id'      => $emailId,
+                'message' => 'Email delivered via Resend API (ID: ' . $emailId . ').'
+            ];
+        }
+
+        $resData = @json_decode($response, true);
+        $errMsg = $resData['message'] ?? ($curlErr ?: ('HTTP ' . $httpCode . ' ' . $response));
+        return ['success' => false, 'method' => 'resend', 'message' => 'Resend API error: ' . $errMsg];
+    }
+
+    // 2. Secondary: PHP stream context
+    $context = stream_context_create([
+        'http' => [
+            'method'        => 'POST',
+            'header'        => "Authorization: Bearer {$api_key}\r\nContent-Type: application/json\r\nUser-Agent: BCP-Portal/2.0\r\n",
+            'content'       => $jsonPayload,
+            'timeout'       => 8,
+            'ignore_errors' => true
+        ]
+    ]);
+
+    $response = @file_get_contents('https://api.resend.com/emails', false, $context);
+    $resData  = @json_decode($response, true);
+
+    if (!empty($resData['id'])) {
+        return [
+            'success' => true,
+            'method'  => 'resend',
+            'id'      => $resData['id'],
+            'message' => 'Email delivered via Resend API (ID: ' . $resData['id'] . ').'
+        ];
+    }
+
+    $errMsg = $resData['message'] ?? ($response ?: 'HTTP stream request failed');
+    return ['success' => false, 'method' => 'resend', 'message' => 'Resend API error: ' . $errMsg];
+}
+
+/**
  * Send an email using configured SMTP or PHP mail() fallback.
  */
 function send_system_email(
@@ -45,6 +141,8 @@ function send_system_email(
     }
 
     // Default system mail configuration (Ensures delivery even if database rows are loading)
+    $mail_mailer = 'smtp';
+    $resend_api_key = '';
     $smtp_host = 'smtp.gmail.com';
     $smtp_port = 587;
     $smtp_user = 'cgales923@gmail.com';
@@ -55,11 +153,13 @@ function send_system_email(
 
     if ($db) {
         try {
-            $res = $db->query("SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_crypto', 'mail_from_name', 'mail_from_email')");
+            $res = $db->query("SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('mail_mailer', 'resend_api_key', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_crypto', 'mail_from_name', 'mail_from_email')");
             if ($res) {
                 while ($row = $res->fetch_assoc()) {
                     $k = $row['setting_key'];
                     $v = $row['setting_value'];
+                    if ($k === 'mail_mailer' && !empty($v)) $mail_mailer = strtolower(trim($v));
+                    if ($k === 'resend_api_key' && !empty($v)) $resend_api_key = trim($v);
                     if ($k === 'smtp_host' && !empty($v)) $smtp_host = trim($v);
                     if ($k === 'smtp_port' && !empty($v)) $smtp_port = (int)$v;
                     if ($k === 'smtp_user' && !empty($v)) $smtp_user = trim($v);
@@ -73,32 +173,71 @@ function send_system_email(
     }
 
     // Check environment variable overrides (Environment variables take precedence over DB defaults)
-    if (getenv('MAIL_HOST') && getenv('MAIL_HOST') !== '127.0.0.1') {
-        $smtp_host = trim(getenv('MAIL_HOST'));
+    $env_mailer = getenv('MAIL_MAILER');
+    if (!empty($env_mailer)) {
+        $mail_mailer = strtolower(trim($env_mailer));
     }
-    if (getenv('MAIL_PORT')) {
-        $smtp_port = (int)getenv('MAIL_PORT');
+    $env_resend_key = getenv('RESEND_API_KEY');
+    if (!empty($env_resend_key)) {
+        $resend_api_key = trim($env_resend_key);
     }
-    if (getenv('MAIL_USERNAME')) {
-        $smtp_user = trim(getenv('MAIL_USERNAME'));
+    $env_host = getenv('MAIL_HOST') ?: (getenv('SMTP_HOST') ?: '');
+    if (!empty($env_host) && $env_host !== '127.0.0.1') {
+        $smtp_host = trim($env_host);
     }
-    if (getenv('MAIL_PASSWORD')) {
-        $smtp_pass = trim(getenv('MAIL_PASSWORD'));
+    $env_port = getenv('MAIL_PORT') ?: (getenv('SMTP_PORT') ?: '');
+    if (!empty($env_port)) {
+        $smtp_port = (int)$env_port;
     }
-    if (getenv('MAIL_FROM_ADDRESS')) {
-        $mail_from_email = getenv('MAIL_FROM_ADDRESS');
+    $env_user = getenv('MAIL_USERNAME') ?: (getenv('SMTP_USER') ?: (getenv('SMTP_USERNAME') ?: ''));
+    if (!empty($env_user)) {
+        $smtp_user = trim($env_user);
     }
-    if (getenv('MAIL_FROM_NAME')) {
-        $mail_from_name = getenv('MAIL_FROM_NAME');
+    $env_pass = getenv('MAIL_PASSWORD') ?: (getenv('SMTP_PASS') ?: (getenv('SMTP_PASSWORD') ?: ''));
+    if (!empty($env_pass)) {
+        $smtp_pass = trim($env_pass);
     }
-    if (getenv('MAIL_ENCRYPTION')) {
-        $smtp_crypto = strtolower(trim(getenv('MAIL_ENCRYPTION')));
+    $env_from = getenv('MAIL_FROM_ADDRESS') ?: (getenv('SMTP_FROM_EMAIL') ?: (getenv('SMTP_FROM') ?: ''));
+    if (!empty($env_from)) {
+        $mail_from_email = trim($env_from);
+    }
+    $env_name = getenv('MAIL_FROM_NAME') ?: (getenv('SMTP_FROM_NAME') ?: '');
+    if (!empty($env_name)) {
+        $mail_from_name = trim($env_name);
+    }
+    $env_crypto = getenv('MAIL_ENCRYPTION') ?: (getenv('SMTP_CRYPTO') ?: (getenv('SMTP_ENCRYPTION') ?: ''));
+    if (!empty($env_crypto)) {
+        $smtp_crypto = strtolower(trim($env_crypto));
     }
     if (empty($smtp_crypto)) {
         $smtp_crypto = ($smtp_port === 465) ? 'ssl' : 'tls';
     }
 
-    // 1. Attempt SMTP on configured port (e.g. 587 TLS)
+    // 1. Attempt Resend REST API if configured or active
+    $use_resend = ($mail_mailer === 'resend' || !empty($resend_api_key) || !empty($env_resend_key));
+    if ($use_resend) {
+        $active_resend_key = !empty($resend_api_key) ? $resend_api_key : (getenv('RESEND_API_KEY') ?: '');
+        $active_resend_from = (!empty($mail_from_email) && strpos($mail_from_email, '@') !== false && !str_ends_with($mail_from_email, '@bcp.edu.ph'))
+            ? $mail_from_email
+            : 'onboarding@resend.dev';
+        $active_from_name = !empty($mail_from_name) ? $mail_from_name : 'BCP Co-Curricular Management System';
+
+        $resendResult = send_via_resend_api(
+            $active_resend_key,
+            $active_resend_from,
+            $active_from_name,
+            $to_email,
+            $subject,
+            $html_body,
+            $text_body
+        );
+
+        if ($resendResult['success']) {
+            return $resendResult;
+        }
+    }
+
+    // 2. Attempt SMTP on configured port (e.g. 587 TLS)
     if (!empty($smtp_host)) {
         $active_from = (!empty($smtp_user) && stripos($smtp_host, 'gmail') !== false) ? $smtp_user : $mail_from_email;
         $smtpResult = send_via_socket_smtp($smtp_host, $smtp_port, $smtp_user, $smtp_pass, $smtp_crypto, $active_from, $mail_from_name, $to_email, $to_name, $subject, $html_body, $text_body);
@@ -485,7 +624,7 @@ function dispatch_mfa_email(
         <tr>
           <td style='background:linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); padding:28px 24px; text-align:center;'>
             <div style='display:inline-block; background:#ffffff; border-radius:50%; padding:8px; box-shadow:0 4px 14px rgba(0,0,0,0.18); margin-bottom:12px;'>
-              <img src='cid:bcp_school_logo' alt='Bestlink College of the Philippines Logo' width='60' height='60' style='display:block; width:60px; height:60px; object-fit:contain;' />
+              <img src='https://co-curricular.bcpsms2.com/app/images/BCP_LOGO.png' alt='Bestlink College of the Philippines Logo' width='60' height='60' style='display:block; width:60px; height:60px; object-fit:contain;' />
             </div>
             <h1 style='color:#ffffff; font-size:1.25rem; font-weight:800; margin:0 0 4px 0; letter-spacing:0.3px;'>Bestlink College of the Philippines</h1>
             <p style='color:#bfdbfe; font-size:0.84rem; margin:0; font-weight:600;'>Co-Curricular Management System</p>
