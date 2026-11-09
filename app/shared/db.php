@@ -181,17 +181,17 @@ $cache_file = __DIR__ . '/.db_host_cache.json';
 if (!function_exists('bcp_probe_db_profile')) {
     function bcp_probe_db_profile(array $p, bool $is_setup = false, int $timeout = 2): ?mysqli {
         if (empty($p['host'])) return null;
-        try {
-            $target_db = $is_setup ? '' : ($p['db'] ?? '');
-            $port = (int)($p['port'] ?? 3306);
-            $host = $p['host'];
-            $user = $p['user'] ?? '';
-            $pass = $p['pass'] ?? '';
+        $host = $p['host'];
+        $port = (int)($p['port'] ?? 3306);
+        $user = $p['user'] ?? '';
+        $pass = $p['pass'] ?? '';
+        $target_db = $is_setup ? '' : ($p['db'] ?? '');
 
+        try {
             $use_ssl = (
                 !empty($p['ssl']) ||
-                getenv('DB_SSL') === 'true' ||
-                getenv('MYSQL_SSL') === 'true'
+                bcp_get_env('DB_SSL') === 'true' ||
+                bcp_get_env('MYSQL_SSL') === 'true'
             );
 
             // 1. First attempt: standard connection (or explicit SSL if configured)
@@ -210,8 +210,11 @@ if (!function_exists('bcp_probe_db_profile')) {
                     return $c;
                 }
 
-                // If standard connection failed and host is remote cloud, retry with SSL
-                if (!$ok && !$use_ssl && !in_array($host, ['127.0.0.1', 'localhost', 'db'], true) && strpos($host, '.internal') === false) {
+                $err = ($c && $c->connect_error) ? $c->connect_error : ($c && $c->connect_errno ? "code " . $c->connect_errno : "connection failed");
+                $GLOBALS['__bcp_last_probe_error'] = "{$host}:{$port} -> {$err}";
+
+                // If standard connection failed and host is remote cloud or container, retry with SSL
+                if (!$ok && !$use_ssl && !in_array($host, ['127.0.0.1', 'localhost'], true)) {
                     $cssl = mysqli_init();
                     if ($cssl) {
                         @$cssl->options(MYSQLI_OPT_CONNECT_TIMEOUT, $timeout);
@@ -219,6 +222,9 @@ if (!function_exists('bcp_probe_db_profile')) {
                         $flags = defined('MYSQLI_CLIENT_SSL_DONT_VERIFY_SERVER_CERT') ? MYSQLI_CLIENT_SSL_DONT_VERIFY_SERVER_CERT : (defined('MYSQLI_CLIENT_SSL') ? MYSQLI_CLIENT_SSL : 0);
                         if (@$cssl->real_connect($host, $user, $pass, $target_db, $port, NULL, $flags) && !$cssl->connect_error) {
                             return $cssl;
+                        }
+                        if ($cssl && $cssl->connect_error) {
+                            $GLOBALS['__bcp_last_probe_error'] = "{$host}:{$port} (SSL) -> " . $cssl->connect_error;
                         }
                     }
                 }
@@ -244,7 +250,9 @@ if (!function_exists('bcp_probe_db_profile')) {
                     }
                 }
             }
-        } catch (Throwable $e) {}
+        } catch (Throwable $e) {
+            $GLOBALS['__bcp_last_probe_error'] = "{$host}:{$port} -> " . $e->getMessage();
+        }
         return null;
     }
 }
@@ -394,7 +402,7 @@ if (!$conn) {
     }
 
     // Test candidate profiles
-    $probe_timeout = $has_cloud_env ? 3 : 1;
+    $probe_timeout = $has_cloud_env ? 5 : 1;
     foreach ($connection_profiles as $p) {
         if (empty($p['host'])) continue;
         $c = bcp_probe_db_profile($p, $is_setup_script, $probe_timeout);
@@ -412,6 +420,9 @@ if (!$conn) {
             @file_put_contents($cache_file, json_encode($p, JSON_UNESCAPED_SLASHES));
             break;
         }
+    }
+    if (!$conn) {
+        $db_error = $GLOBALS['__bcp_last_probe_error'] ?? 'Unable to connect to MySQL database service.';
     }
 }
 
@@ -487,9 +498,10 @@ if ($db_connected && $conn && !$conn->connect_error) {
             if ($is_railway && empty(bcp_get_env('MYSQL_URL')) && empty(bcp_get_env('MYSQLHOST'))) {
                 $hint = " Tip: Link your MySQL service in Railway (go to Web Service -> Variables -> Add Reference -> MYSQL_URL).";
             }
+            $err_msg = !empty($db_error) ? " ($db_error)" : (!empty($GLOBALS['__bcp_last_probe_error']) ? " (" . $GLOBALS['__bcp_last_probe_error'] . ")" : "");
             echo json_encode([
                 'success' => false,
-                'message' => "Database service is currently unreachable or initializing." . $hint . " Please check /db_check.php for details."
+                'message' => "Database service is currently unreachable or initializing." . $err_msg . $hint . " Please check /db_check.php for details."
             ]);
             exit;
         }
