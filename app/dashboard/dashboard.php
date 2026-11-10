@@ -1710,8 +1710,6 @@ require_once __DIR__ . '/../shared/sidebar.php';
   <div class="footer">eLearning Commons &copy; 2026</div>
 </div><!-- end main -->
 
-<div class="sidebar-overlay" id="sidebarOverlay"></div>
-
 <script src="../js/dashboard.js?v=<?= filemtime(__DIR__ . '/../js/dashboard.js') ?>"></script>
 <script src="../js/table-pagination.js?v=<?= filemtime(__DIR__ . '/../js/table-pagination.js') ?>"></script>
 

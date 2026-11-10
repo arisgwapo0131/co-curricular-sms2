@@ -166,7 +166,7 @@ if (!empty($action)) {
 
     // ── LIST all attendees for an event (Adviser / above) ────
     case 'list_event': {
-        if (!in_array($user_role, ['club_adviser','ssc','admin']))
+        if (!in_array($user_role, ['club_adviser','ssc','admin','super_admin','staff'], true))
             aRespond(false, 'Not authorized.');
         $event_id = (int)($_GET['event_id'] ?? $_POST['event_id'] ?? 0);
         if ($event_id <= 0) aRespond(false, 'Invalid event ID.');
@@ -652,12 +652,19 @@ if (!empty($action)) {
             $where .= " AND asa.result = '$safeRes'";
         }
 
-        // Adviser can only view attempts for their assigned events
+        // Adviser can only view attempts for their assigned events / program
         if ($user_role === 'club_adviser') {
             $assigned_clubs = get_user_assigned_clubs($conn, $user_id, $user_role);
             $assigned_ids = array_map('intval', array_column($assigned_clubs, 'id'));
+            $programs = array_filter(array_unique(array_column($assigned_clubs, 'program')));
             $cid_list = !empty($assigned_ids) ? implode(',', $assigned_ids) : '0';
-            $where .= " AND (asa.event_id IN (SELECT id FROM events WHERE club_id IN ($cid_list)))";
+            if (!empty($programs)) {
+                $escaped_p = array_map(function($p) use ($conn) { return "'" . $conn->real_escape_string($p) . "'"; }, $programs);
+                $in_p = implode(',', $escaped_p);
+                $where .= " AND (asa.event_id IN (SELECT e.id FROM events e LEFT JOIN clubs c ON c.id = e.club_id WHERE e.club_id IN ($cid_list) OR c.program IN ($in_p) OR e.target_course IN ($in_p)))";
+            } else {
+                $where .= " AND (asa.event_id IN (SELECT id FROM events WHERE club_id IN ($cid_list)))";
+            }
         }
 
         $sql = "
@@ -696,8 +703,15 @@ if (!empty($action)) {
         if ($user_role === 'club_adviser') {
             $assigned_clubs = get_user_assigned_clubs($conn, $user_id, $user_role);
             $assigned_ids = array_map('intval', array_column($assigned_clubs, 'id'));
+            $programs = array_filter(array_unique(array_column($assigned_clubs, 'program')));
             $cid_list = !empty($assigned_ids) ? implode(',', $assigned_ids) : '0';
-            $where .= " AND (qs.event_id IN (SELECT id FROM events WHERE club_id IN ($cid_list)))";
+            if (!empty($programs)) {
+                $escaped_p = array_map(function($p) use ($conn) { return "'" . $conn->real_escape_string($p) . "'"; }, $programs);
+                $in_p = implode(',', $escaped_p);
+                $where .= " AND (qs.event_id IN (SELECT e.id FROM events e LEFT JOIN clubs c ON c.id = e.club_id WHERE e.club_id IN ($cid_list) OR c.program IN ($in_p) OR e.target_course IN ($in_p)))";
+            } else {
+                $where .= " AND (qs.event_id IN (SELECT id FROM events WHERE club_id IN ($cid_list)))";
+            }
         }
 
         $sql = "
@@ -847,6 +861,252 @@ if (!empty($action)) {
             'avg_per_event' => $avg_per_event,
             'breakdown'     => $breakdown,
         ]);
+    }
+
+    // ── EXPORT ATTENDANCE CSV ────────────────────────────────
+    case 'export_attendance_csv': {
+        if (!in_array($user_role, ['club_adviser', 'ssc', 'admin', 'super_admin', 'staff'], true)) {
+            aRespond(false, 'Not authorized to export attendance records.');
+        }
+
+        $event_id = (int)($_GET['event_id'] ?? $_POST['event_id'] ?? 0);
+        $status_filter = trim($_GET['status'] ?? $_POST['status'] ?? '');
+
+        $where = ["1=1"];
+        $params = [];
+        $types = "";
+
+        if ($user_role === 'club_adviser') {
+            $assigned = get_user_assigned_clubs($conn, $user_id, $user_role);
+            $club_ids = array_map('intval', array_column($assigned, 'id'));
+            $programs = array_filter(array_unique(array_column($assigned, 'program')));
+            if (!empty($club_ids)) {
+                $in_c = implode(',', $club_ids);
+                if (!empty($programs)) {
+                    $escaped_p = array_map(function($p) use ($conn) { return "'" . $conn->real_escape_string($p) . "'"; }, $programs);
+                    $in_p = implode(',', $escaped_p);
+                    $where[] = "(e.club_id IN ($in_c) OR c.program IN ($in_p) OR e.target_course IN ($in_p))";
+                } else {
+                    $where[] = "e.club_id IN ($in_c)";
+                }
+            } else {
+                $where[] = "e.created_by = $user_id";
+            }
+        }
+
+        if ($event_id > 0) {
+            $where[] = "al.event_id = ?";
+            $params[] = $event_id;
+            $types .= "i";
+        }
+
+        if ($status_filter !== '' && strtolower($status_filter) !== 'all') {
+            $where[] = "LOWER(al.status) = ?";
+            $params[] = strtolower($status_filter);
+            $types .= "s";
+        }
+
+        $sql = "
+            SELECT 
+                al.id, al.check_in, al.method, al.status, al.override_reason,
+                e.title AS event_title, e.venue AS event_venue,
+                c.code AS club_code, c.name AS club_name,
+                u.first_name, u.last_name, u.email, u.username,
+                s.student_number, s.course, s.year_level, s.section,
+                logger.first_name AS logger_first, logger.last_name AS logger_last, logger.role AS logger_role
+            FROM attendance_logs al
+            LEFT JOIN events e ON e.id = al.event_id
+            LEFT JOIN clubs c ON c.id = e.club_id
+            LEFT JOIN users u ON u.id = al.user_id
+            LEFT JOIN students s ON (s.user_id = u.id OR (u.first_name = s.first_name AND u.last_name = s.last_name))
+            LEFT JOIN users logger ON logger.id = al.logged_by
+            WHERE " . implode(' AND ', $where) . "
+            ORDER BY al.check_in DESC, al.id DESC
+        ";
+
+        $stmt = $conn->prepare($sql);
+        if ($types !== "") {
+            $stmt->bind_param($types, ...$params);
+        }
+        $stmt->execute();
+        $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt->close();
+
+        $filename = "BCP_Attendance_Ledger_" . date('Ymd_His') . ".csv";
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        $out = fopen('php://output', 'w');
+        // UTF-8 BOM for Excel
+        fputs($out, "\xEF\xBB\xBF");
+
+        fputcsv($out, [
+            'Log ID',
+            'Timestamp',
+            'Student ID / Number',
+            'Student Full Name',
+            'Course & Section',
+            'Campus Event Title',
+            'Host Club / Organization',
+            'Check-In Method',
+            'Recorded By',
+            'Attendance Status',
+            'Override Reason'
+        ]);
+
+        foreach ($rows as $r) {
+            $fullName = trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? ''));
+            $studentNo = $r['student_number'] ?? ('ID#' . ($r['user_id'] ?? ''));
+            $courseStr = trim(($r['course'] ?? '') . ' ' . ($r['year_level'] ?? '') . ' ' . ($r['section'] ?? ''));
+            $recorder = !empty($r['logger_first']) ? trim($r['logger_first'] . ' ' . ($r['logger_last'] ?? '')) : 'Self Check-in';
+
+            fputcsv($out, [
+                $r['id'],
+                date('Y-m-d H:i:s', strtotime($r['check_in'])),
+                $studentNo,
+                $fullName,
+                $courseStr,
+                $r['event_title'] ?? 'Campus Event',
+                $r['club_name'] ?? ($r['club_code'] ?? 'Campus-Wide'),
+                $r['method'] ?? 'QR',
+                $recorder,
+                $r['status'] ?? 'Present',
+                $r['override_reason'] ?? ''
+            ]);
+        }
+
+        fclose($out);
+        if (function_exists('log_audit')) {
+            log_audit($conn, $user_id, 'attendance_export_csv', 'attendance_logs', 0, "Exported " . count($rows) . " attendance logs to CSV");
+        }
+        exit;
+    }
+
+    // ── EXPORT ATTENDANCE EXCEL ──────────────────────────────
+    case 'export_attendance_excel': {
+        if (!in_array($user_role, ['club_adviser', 'ssc', 'admin', 'super_admin', 'staff'], true)) {
+            aRespond(false, 'Not authorized to export attendance records.');
+        }
+
+        $event_id = (int)($_GET['event_id'] ?? $_POST['event_id'] ?? 0);
+        $status_filter = trim($_GET['status'] ?? $_POST['status'] ?? '');
+
+        $where = ["1=1"];
+        $params = [];
+        $types = "";
+
+        if ($user_role === 'club_adviser') {
+            $assigned = get_user_assigned_clubs($conn, $user_id, $user_role);
+            $club_ids = array_map('intval', array_column($assigned, 'id'));
+            $programs = array_filter(array_unique(array_column($assigned, 'program')));
+            if (!empty($club_ids)) {
+                $in_c = implode(',', $club_ids);
+                if (!empty($programs)) {
+                    $escaped_p = array_map(function($p) use ($conn) { return "'" . $conn->real_escape_string($p) . "'"; }, $programs);
+                    $in_p = implode(',', $escaped_p);
+                    $where[] = "(e.club_id IN ($in_c) OR c.program IN ($in_p) OR e.target_course IN ($in_p))";
+                } else {
+                    $where[] = "e.club_id IN ($in_c)";
+                }
+            } else {
+                $where[] = "e.created_by = $user_id";
+            }
+        }
+
+        if ($event_id > 0) {
+            $where[] = "al.event_id = ?";
+            $params[] = $event_id;
+            $types .= "i";
+        }
+
+        if ($status_filter !== '' && strtolower($status_filter) !== 'all') {
+            $where[] = "LOWER(al.status) = ?";
+            $params[] = strtolower($status_filter);
+            $types .= "s";
+        }
+
+        $sql = "
+            SELECT 
+                al.id, al.check_in, al.method, al.status, al.override_reason,
+                e.title AS event_title, e.venue AS event_venue,
+                c.code AS club_code, c.name AS club_name,
+                u.first_name, u.last_name, u.email, u.username,
+                s.student_number, s.course, s.year_level, s.section,
+                logger.first_name AS logger_first, logger.last_name AS logger_last, logger.role AS logger_role
+            FROM attendance_logs al
+            LEFT JOIN events e ON e.id = al.event_id
+            LEFT JOIN clubs c ON c.id = e.club_id
+            LEFT JOIN users u ON u.id = al.user_id
+            LEFT JOIN students s ON (s.user_id = u.id OR (u.first_name = s.first_name AND u.last_name = s.last_name))
+            LEFT JOIN users logger ON logger.id = al.logged_by
+            WHERE " . implode(' AND ', $where) . "
+            ORDER BY al.check_in DESC, al.id DESC
+        ";
+
+        $stmt = $conn->prepare($sql);
+        if ($types !== "") {
+            $stmt->bind_param($types, ...$params);
+        }
+        $stmt->execute();
+        $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt->close();
+
+        $filename = "BCP_Attendance_Ledger_" . date('Ymd_His') . ".xls";
+        header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+        echo '<head><meta charset="UTF-8">';
+        echo '<style>
+            table { border-collapse: collapse; width: 100%; font-family: Segoe UI, Arial, sans-serif; }
+            th { background-color: #1e3a8a; color: #ffffff; font-weight: bold; padding: 10px; border: 1px solid #cbd5e1; }
+            td { padding: 8px 10px; border: 1px solid #cbd5e1; font-size: 13px; }
+            tr:nth-child(even) { background-color: #f8fafc; }
+            .header-title { font-size: 18px; font-weight: bold; color: #1e3a8a; padding: 10px 0; }
+            .header-sub { font-size: 12px; color: #64748b; margin-bottom: 12px; }
+            .status-present { color: #15803d; font-weight: bold; }
+            .status-late { color: #b45309; font-weight: bold; }
+        </style></head><body>';
+        echo '<div class="header-title">BESTLINK COLLEGE OF THE PHILIPPINES</div>';
+        echo '<div class="header-sub">Official Event Attendance Ledger &bull; Generated on: ' . date('M d, Y h:i A') . '</div>';
+        echo '<table><thead><tr>';
+        echo '<th>#</th><th>Timestamp</th><th>Student Number</th><th>Student Attendee</th><th>Course & Section</th><th>Campus Event</th><th>Organization</th><th>Method</th><th>Recorded By</th><th>Status</th><th>Notes</th>';
+        echo '</tr></thead><tbody>';
+
+        foreach ($rows as $idx => $r) {
+            $fullName = htmlspecialchars(trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? '')));
+            $studentNo = htmlspecialchars($r['student_number'] ?? ('ID#' . ($r['user_id'] ?? '')));
+            $courseStr = htmlspecialchars(trim(($r['course'] ?? '') . ' ' . ($r['year_level'] ?? '') . ' ' . ($r['section'] ?? '')));
+            $evTitle = htmlspecialchars($r['event_title'] ?? 'Campus Event');
+            $clubStr = htmlspecialchars($r['club_name'] ?? ($r['club_code'] ?? 'Campus-Wide'));
+            $recorder = htmlspecialchars(!empty($r['logger_first']) ? trim($r['logger_first'] . ' ' . ($r['logger_last'] ?? '')) : 'Self Check-in');
+            $st = htmlspecialchars($r['status'] ?? 'Present');
+            $stClass = (strtolower($st) === 'late') ? 'status-late' : 'status-present';
+
+            echo '<tr>';
+            echo '<td>' . ($idx + 1) . '</td>';
+            echo '<td>' . date('M d, Y h:i A', strtotime($r['check_in'])) . '</td>';
+            echo '<td>' . $studentNo . '</td>';
+            echo '<td><strong>' . $fullName . '</strong></td>';
+            echo '<td>' . $courseStr . '</td>';
+            echo '<td>' . $evTitle . '</td>';
+            echo '<td>' . $clubStr . '</td>';
+            echo '<td>' . htmlspecialchars($r['method'] ?? 'QR') . '</td>';
+            echo '<td>' . $recorder . '</td>';
+            echo '<td class="' . $stClass . '">' . $st . '</td>';
+            echo '<td>' . htmlspecialchars($r['override_reason'] ?? '') . '</td>';
+            echo '</tr>';
+        }
+
+        echo '</tbody></table></body></html>';
+        if (function_exists('log_audit')) {
+            log_audit($conn, $user_id, 'attendance_export_excel', 'attendance_logs', 0, "Exported " . count($rows) . " attendance logs to Excel");
+        }
+        exit;
     }
 
     default:

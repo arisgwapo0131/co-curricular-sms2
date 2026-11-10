@@ -912,6 +912,35 @@ switch ($action) {
         // 5. MICROSERVICE: ATTENDANCE TRACKER (Admin / SSC view)
         // ════════════════════════════════════════════════════════
         elseif ($type === 'attendance_summary' || $type === 'attendance_tracker') {
+            $where_rpt = "";
+            $rpt_club_info = ['name' => 'Campus Wide Event Attendance Administration', 'code' => 'BCP-ATT'];
+            $rpt_title = 'Attendance Tracker & Turnout Audit Summary';
+            $rpt_headline = 'Executive Digest: Campus-Wide Event Attendance & Participation Telemetry';
+            
+            if ($user_role === 'club_adviser') {
+                $assigned_clubs = get_user_assigned_clubs($conn, $user_id, $user_role);
+                $adviser_club_ids = array_map('intval', array_column($assigned_clubs, 'id'));
+                $adviser_programs = array_filter(array_unique(array_column($assigned_clubs, 'program')));
+                if (!empty($adviser_club_ids)) {
+                    $in_c = implode(',', $adviser_club_ids);
+                    if (!empty($adviser_programs)) {
+                        $escaped_p = array_map(function($p) use ($conn) { return "'" . $conn->real_escape_string($p) . "'"; }, $adviser_programs);
+                        $in_p = implode(',', $escaped_p);
+                        $where_rpt = "WHERE (e.club_id IN ($in_c) OR c.program IN ($in_p) OR e.target_course IN ($in_p))";
+                    } else {
+                        $where_rpt = "WHERE e.club_id IN ($in_c)";
+                    }
+                    $cName = $assigned_clubs[0]['name'] ?? 'Assigned Organization';
+                    $cProg = !empty($adviser_programs) ? implode(', ', $adviser_programs) : '';
+                    $rpt_club_info = [
+                        'name' => $cName . ($cProg ? " ($cProg)" : ''),
+                        'code' => $assigned_clubs[0]['code'] ?? 'ORG'
+                    ];
+                    $rpt_title = $cName . ' — Attendance & Turnout Report';
+                    $rpt_headline = "Executive Digest: Attendance Records for {$cName}" . ($cProg ? " [Program: {$cProg}]" : '');
+                }
+            }
+
             $sql = "SELECT al.id, al.check_in, al.method,
                            e.title as event_title, e.event_date,
                            u.first_name, u.last_name, u.username,
@@ -922,6 +951,7 @@ switch ($action) {
                     JOIN users u ON u.id = al.user_id
                     LEFT JOIN clubs c ON c.id = e.club_id
                     LEFT JOIN students s ON (s.user_id = u.id OR (u.first_name = s.first_name AND u.last_name = s.last_name))
+                    $where_rpt
                     ORDER BY al.check_in DESC
                     LIMIT 300";
             $rows = $conn->query($sql)->fetch_all(MYSQLI_ASSOC);
@@ -931,17 +961,17 @@ switch ($action) {
             $unique_events = count(array_unique(array_column($rows, 'event_title')));
 
             rptRespond(true, 'Executive summary generated.', [
-                'title'          => 'Attendance Tracker & Turnout Audit Summary',
+                'title'          => $rpt_title,
                 'report_type'    => 'attendance_tracker',
-                'club'           => ['name' => 'Campus Wide Event Attendance Administration', 'code' => 'BCP-ATT'],
+                'club'           => $rpt_club_info,
                 'date_generated' => $date_generated,
                 'executive_summary' => [
-                    'headline' => 'Executive Digest: Campus-Wide Event Attendance & Participation Telemetry',
-                    'narrative' => "Campus-wide attendance logs record {$total_logs} verified check-in entries across {$unique_events} institutional events. A total of {$unique_students} distinct students participated, verified via automated QR check-in engines.",
+                    'headline' => $rpt_headline,
+                    'narrative' => "Verified attendance records report {$total_logs} check-in entries across {$unique_events} tracked events. A total of {$unique_students} distinct student attendees have been confirmed via authenticated QR check-in engines.",
                     'key_findings' => [
                         "Total Check-Ins: {$total_logs} verified student attendance records stored.",
                         "Student Engagement: {$unique_students} unique student participants logged.",
-                        "Events Monitored: {$unique_events} institutional and club activities tracked.",
+                        "Events Monitored: {$unique_events} activities tracked.",
                         "Integrity Assurance: 100% of attendance confirmed via real-time QR logs."
                     ]
                 ],

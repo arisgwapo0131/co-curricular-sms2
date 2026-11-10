@@ -428,7 +428,100 @@ if ($sess_role === 'club_adviser' && $adviser_club) {
   <link rel="stylesheet" href="../vendor/fontawesome/css/all.min.css"/>
   <meta name="loader-logo" content="../images/BCP_LOGO.png"/>
   <script src="../js/page-loader.js"></script>
+  <!-- jsPDF & AutoTable for client-side PDF downloads -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <style>
+    /* Export Dropdown & Action Controls */
+    .btn-export-group {
+      position: relative;
+      display: inline-block;
+    }
+    .btn-export-main {
+      height: 38px;
+      padding: 0 15px;
+      background: #2563eb;
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      box-shadow: 0 1px 3px rgba(37,99,235,0.2);
+    }
+    .btn-export-main:hover {
+      background: #1d4ed8;
+      box-shadow: 0 3px 8px rgba(37,99,235,0.25);
+    }
+    .export-dropdown-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      background: #ffffff;
+      min-width: 250px;
+      border-radius: 10px;
+      box-shadow: 0 14px 30px -4px rgba(15,23,42,0.18), 0 6px 12px -4px rgba(15,23,42,0.1);
+      border: 1px solid #e2e8f0;
+      z-index: 1050;
+      overflow: hidden;
+      animation: fadeIn 0.14s ease-out;
+    }
+    .export-dropdown-menu.show {
+      display: block;
+    }
+    .export-menu-header {
+      padding: 9px 14px 6px;
+      font-size: 0.70rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #94a3b8;
+      background: #f8fafc;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .export-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #334155;
+      text-decoration: none;
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      width: 100%;
+      text-align: left;
+      transition: background 0.12s ease;
+      box-sizing: border-box;
+    }
+    .export-menu-item:hover {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+    .export-item-title {
+      font-weight: 700;
+      line-height: 1.2;
+      color: #1e293b;
+    }
+    .export-item-sub {
+      font-size: 0.70rem;
+      font-weight: 500;
+      color: #64748b;
+      margin-top: 1px;
+    }
+    .export-menu-divider {
+      height: 1px;
+      background: #e2e8f0;
+      margin: 3px 0;
+    }
+
     /* ── Volunteer Hours Theme & Typography ── */
     .vol-container { width: 100%; max-width: 100%; margin: 0; }
     
@@ -812,6 +905,11 @@ if ($sess_role === 'club_adviser' && $adviser_club) {
       border-bottom: 2px solid #e2e8f0;
       margin-bottom: 22px;
       padding-bottom: 2px;
+      overflow-x: auto;
+      white-space: nowrap;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      max-width: 100%;
     }
     .vol-nav-tab {
       padding: 10px 18px;
@@ -828,6 +926,8 @@ if ($sess_role === 'club_adviser' && $adviser_club) {
       border-top: none;
       border-left: none;
       border-right: none;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .vol-nav-tab.active {
       color: #1e3a8a;
@@ -855,6 +955,43 @@ if ($sess_role === 'club_adviser' && $adviser_club) {
       position: relative;
       overflow: hidden;
       margin: auto;
+    }
+
+    @media (max-width: 640px) {
+      .modal-overlay {
+        padding: 10px;
+        align-items: flex-end;
+      }
+      .modal-card {
+        border-radius: 16px 16px 0 0;
+        max-height: 90vh;
+        max-height: 90dvh;
+        overflow-y: auto;
+      }
+      .vol-kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+      }
+      .vol-kpi-card {
+        padding: 10px 12px !important;
+        gap: 10px !important;
+      }
+      .vol-kpi-icon {
+        width: 38px !important;
+        height: 38px !important;
+        font-size: 1rem !important;
+      }
+      .vol-kpi-val {
+        font-size: 1.15rem !important;
+      }
+      .vol-kpi-lbl {
+        font-size: 0.70rem !important;
+      }
+    }
+    @media (max-width: 380px) {
+      .vol-kpi-grid {
+        grid-template-columns: 1fr !important;
+      }
     }
   </style>
 </head>
@@ -912,7 +1049,50 @@ if ($sess_role === 'club_adviser' && $adviser_club) {
         </div>
       </div>
       <?php if (in_array($sess_role, ['club_adviser', 'ssc', 'admin'])): ?>
-        <div style="display:flex; gap:10px; align-items:center;">
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <!-- Export Report Dropdown Group -->
+          <div class="btn-export-group">
+            <button type="button" class="btn-export-main" onclick="toggleExportMenu('volunteerExportMenu')" title="Download volunteer records in PDF, Excel, or CSV">
+              <i class="fa-solid fa-cloud-arrow-down"></i>
+              <span>Export Volunteers</span>
+              <i class="fa-solid fa-chevron-down" style="font-size:0.65rem; margin-left:3px;"></i>
+            </button>
+            <div id="volunteerExportMenu" class="export-dropdown-menu">
+              <div class="export-menu-header">
+                Volunteer Records Export
+              </div>
+              <button type="button" class="export-menu-item" onclick="exportVolunteerPDF()">
+                <i class="fa-solid fa-file-pdf" style="color:#dc2626; font-size:1.05rem;"></i>
+                <div>
+                  <div class="export-item-title">Download PDF (.pdf)</div>
+                  <div class="export-item-sub">Formal print-ready accreditation report</div>
+                </div>
+              </button>
+              <button type="button" class="export-menu-item" onclick="exportVolunteerExcel()">
+                <i class="fa-solid fa-file-excel" style="color:#16a34a; font-size:1.05rem;"></i>
+                <div>
+                  <div class="export-item-title">Download Excel (.xlsx)</div>
+                  <div class="export-item-sub">Structured spreadsheet format</div>
+                </div>
+              </button>
+              <button type="button" class="export-menu-item" onclick="exportVolunteerCSV()">
+                <i class="fa-solid fa-file-csv" style="color:#2563eb; font-size:1.05rem;"></i>
+                <div>
+                  <div class="export-item-title">Download CSV (.csv)</div>
+                  <div class="export-item-sub">Raw UTF-8 delimited dataset</div>
+                </div>
+              </button>
+              <div class="export-menu-divider"></div>
+              <button type="button" class="export-menu-item" onclick="printVolunteerReport()">
+                <i class="fa-solid fa-print" style="color:#475569; font-size:1.05rem;"></i>
+                <div>
+                  <div class="export-item-title">Print Volunteer Roster</div>
+                  <div class="export-item-sub">Official paper / browser printout</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
           <button class="vol-btn vol-btn-primary" onclick="openCreateOpportunityModal()">
             <i class="fa-solid fa-plus-circle"></i> Post Volunteer Role
           </button>
@@ -1057,10 +1237,12 @@ if ($sess_role === 'club_adviser' && $adviser_club) {
             <div>
               <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:#0f172a;">
                 <i class="fa-solid fa-user-clock" style="color:#d97706;"></i> 
-                Student Volunteer Applications Awaiting Adviser Verification
+                <?= ($sess_role === 'ssc') ? 'Campus-Wide Student Volunteer Applications' : 'Student Volunteer Applications Awaiting Adviser Verification' ?>
               </h3>
               <p style="margin:3px 0 0 0; font-size:0.8rem; color:#64748b;">
-                Verify student eligibility based on enrolled course and program before approving credited co-curricular hours.
+                <?= ($sess_role === 'ssc') 
+                    ? 'Council Oversight: Monitoring student volunteer applications across all campus organizations and programs. Official verification and accreditation are conducted by designated faculty club advisers.' 
+                    : 'Verify student eligibility based on enrolled course and program before approving credited co-curricular hours.' ?>
               </p>
             </div>
             <div>
@@ -1086,7 +1268,7 @@ if ($sess_role === 'club_adviser' && $adviser_club) {
                     <th style="padding:12px 14px; text-align:left;">Event &bull; Role</th>
                     <th style="padding:12px 14px; text-align:center;">Hours</th>
                     <th style="padding:12px 14px; text-align:center;">Date Submitted</th>
-                    <th style="padding:12px 14px; text-align:right;">Adviser Action</th>
+                    <th style="padding:12px 14px; text-align:right;"><?= ($sess_role === 'ssc') ? 'Adviser Status' : 'Adviser Action' ?></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1124,16 +1306,22 @@ if ($sess_role === 'club_adviser' && $adviser_club) {
                         <?= date('M d, Y', strtotime($q['created_at'])) ?>
                       </td>
                       <td style="padding:14px; text-align:right;">
-                        <div style="display:flex; justify-content:flex-end; gap:8px;">
-                          <button type="button" class="vol-btn vol-btn-primary" style="padding:7px 14px; font-size:0.8rem;" 
-                                  onclick="openVerifyModal(<?= (int)$q['id'] ?>, '<?= htmlspecialchars(addslashes($q['student_name'])) ?>', '<?= htmlspecialchars(addslashes($q['volunteer_role'])) ?>', '<?= htmlspecialchars(addslashes($q['event_title'])) ?>', <?= (float)$q['hours'] ?>)">
-                            <i class="fa-solid fa-check"></i> Verify Role
-                          </button>
-                          <button type="button" class="vol-btn" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:7px 12px; font-size:0.8rem;" 
-                                  onclick="rejectVolunteerApplication(<?= (int)$q['id'] ?>, '<?= htmlspecialchars(addslashes($q['student_name'])) ?>')">
-                            <i class="fa-solid fa-xmark"></i> Reject
-                          </button>
-                        </div>
+                        <?php if ($sess_role === 'ssc'): ?>
+                          <div style="display:inline-flex; align-items:center; gap:6px; background:#fffbeb; color:#b45309; border:1px solid #fde68a; padding:6px 12px; border-radius:8px; font-size:0.78rem; font-weight:700;">
+                            <i class="fa-solid fa-clock-rotate-left"></i> Awaiting Adviser
+                          </div>
+                        <?php else: ?>
+                          <div style="display:flex; justify-content:flex-end; gap:8px;">
+                            <button type="button" class="vol-btn vol-btn-primary" style="padding:7px 14px; font-size:0.8rem;" 
+                                    onclick="openVerifyModal(<?= (int)$q['id'] ?>, '<?= htmlspecialchars(addslashes($q['student_name'])) ?>', '<?= htmlspecialchars(addslashes($q['volunteer_role'])) ?>', '<?= htmlspecialchars(addslashes($q['event_title'])) ?>', <?= (float)$q['hours'] ?>)">
+                              <i class="fa-solid fa-check"></i> Verify Role
+                            </button>
+                            <button type="button" class="vol-btn" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:7px 12px; font-size:0.8rem;" 
+                                    onclick="rejectVolunteerApplication(<?= (int)$q['id'] ?>, '<?= htmlspecialchars(addslashes($q['student_name'])) ?>')">
+                              <i class="fa-solid fa-xmark"></i> Reject
+                            </button>
+                          </div>
+                        <?php endif; ?>
                       </td>
                     </tr>
                   <?php endforeach; ?>
@@ -1149,8 +1337,14 @@ if ($sess_role === 'club_adviser' && $adviser_club) {
         <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:24px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:12px;">
             <div>
-              <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:#0f172a;">Official Verified Volunteers Roster</h3>
-              <p style="margin:3px 0 0 0; font-size:0.8rem; color:#64748b;">Permanent co-curricular volunteer hours record accredited by faculty advisers.</p>
+              <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:#0f172a;">
+                <i class="fa-solid fa-clipboard-check" style="color:#16a34a;"></i> Official Verified Volunteers Roster
+              </h3>
+              <p style="margin:3px 0 0 0; font-size:0.8rem; color:#64748b;">
+                <?= ($sess_role === 'ssc') 
+                    ? 'Council Oversight: Campus-wide registry of verified co-curricular volunteer hours accredited by respective faculty advisers.' 
+                    : 'Permanent co-curricular volunteer hours record accredited by faculty advisers.' ?>
+              </p>
             </div>
             <div>
               <span class="vol-badge vol-badge-verified" style="font-size:0.85rem; padding:6px 14px;">
@@ -1661,9 +1855,15 @@ if ($sess_role === 'club_adviser' && $adviser_club) {
 const sessRole = '<?= $sess_role ?>';
 const csrfToken = '<?= csrf_token() ?>';
 let currentReceiptData = null;
+let currentVolTab = '<?= ($sess_role === 'student') ? 'opportunities' : 'pending' ?>';
+
+const pendingVolunteersData = <?= json_encode($adviser_pending_queue) ?>;
+const verifiedVolunteersData = <?= json_encode($adviser_verified_list) ?>;
+const adviserOrgName = <?= json_encode($adviser_club['name'] ?? '') ?>;
 
 // Tab switcher
 function switchVolTab(tab) {
+  currentVolTab = tab;
   document.querySelectorAll('.vol-nav-tab').forEach(btn => btn.classList.remove('active'));
   
   const contentOpp = document.getElementById('tabContentOpportunities');
@@ -1693,6 +1893,226 @@ function switchVolTab(tab) {
     if (btn) btn.classList.add('active');
     if (contentRost) contentRost.style.display = 'block';
   }
+}
+
+// ── Export Dropdown Toggle ──────────────────────────────────────
+function toggleExportMenu(menuId) {
+  const menu = document.getElementById(menuId);
+  if (!menu) return;
+  const isShown = menu.classList.contains('show');
+  document.querySelectorAll('.export-dropdown-menu').forEach(m => m.classList.remove('show'));
+  if (!isShown) {
+    menu.classList.add('show');
+  }
+}
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.btn-export-group')) {
+    document.querySelectorAll('.export-dropdown-menu').forEach(m => m.classList.remove('show'));
+  }
+});
+
+// ── Multi-Format Volunteer Exports (PDF, Excel, CSV, Print) ────
+function getActiveVolunteerDataset() {
+  if (currentVolTab === 'verifiedRoster') {
+    return {
+      type: 'verified',
+      title: 'Official Verified Volunteers Roster',
+      data: verifiedVolunteersData
+    };
+  } else {
+    return {
+      type: 'pending',
+      title: 'Student Volunteer Applications & Queue',
+      data: pendingVolunteersData.length ? pendingVolunteersData : verifiedVolunteersData
+    };
+  }
+}
+
+function exportVolunteerPDF() {
+  const datasetInfo = getActiveVolunteerDataset();
+  const dataset = datasetInfo.data;
+
+  if (!dataset || !dataset.length) {
+    alert('No volunteer records available to export.');
+    return;
+  }
+
+  const { jsPDF } = window.jspdf || {};
+  if (!jsPDF) {
+    alert('PDF generator is initializing. Please try again in a few moments.');
+    return;
+  }
+
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  // BCP Navy Banner
+  doc.setFillColor(30, 58, 138); // #1e3a8a
+  doc.rect(0, 0, pageWidth, 22, 'F');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(255, 255, 255);
+  doc.text('BESTLINK COLLEGE OF THE PHILIPPINES', 14, 10);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(226, 232, 240);
+  doc.text('Office of Student Affairs & Supreme Student Council — Volunteer Hours & Community Service Record', 14, 16);
+
+  // Subheader
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(15, 23, 42);
+  const scopeLabel = (sessRole === 'ssc') ? 'CAMPUS-WIDE COUNCIL OVERSIGHT' : (adviserOrgName ? adviserOrgName.toUpperCase() : 'ORGANIZATION OVERSIGHT');
+  doc.text(`OFFICIAL VOLUNTEER REPORT — ${datasetInfo.title.toUpperCase()}`, 14, 29);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(100, 116, 139);
+  const nowStr = new Date().toLocaleString();
+  doc.text(`Scope: ${scopeLabel}  |  Generated: ${nowStr}  |  Total Records: ${dataset.length}`, 14, 34);
+
+  const isVerified = (datasetInfo.type === 'verified');
+  const tableHeaders = isVerified
+    ? [['#', 'Student Volunteer', 'ID & Program', 'Host Organization', 'Campus Event', 'Volunteer Role', 'Credited Hours', 'Verified Date', 'Status']]
+    : [['#', 'Student Volunteer', 'ID & Program', 'Host Organization', 'Campus Event', 'Volunteer Role', 'Hours', 'Date Submitted', 'Status']];
+
+  const tableRows = dataset.map((d, i) => [
+    i + 1,
+    d.student_name || 'N/A',
+    (d.student_number ? d.student_number + '\n' : '') + (d.course || 'General Program'),
+    (d.club_name || 'BCP') + (d.club_code ? ` (${d.club_code})` : ''),
+    d.event_title || 'N/A',
+    d.volunteer_role || 'Volunteer',
+    parseFloat(d.hours || 0).toFixed(1) + 'h',
+    isVerified ? (d.verified_at ? d.verified_at.slice(0, 10) : 'Verified') : (d.created_at ? d.created_at.slice(0, 10) : 'N/A'),
+    d.status || (isVerified ? 'Verified' : 'Pending Verification')
+  ]);
+
+  doc.autoTable({
+    head: tableHeaders,
+    body: tableRows,
+    startY: 37,
+    theme: 'striped',
+    styles: {
+      fontSize: 8,
+      cellPadding: 2.5,
+      overflow: 'linebreak',
+      valign: 'middle'
+    },
+    headStyles: {
+      fillColor: [30, 58, 138],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold'
+    },
+    alternateRowStyles: {
+      fillColor: [248, 250, 252]
+    },
+    didDrawPage: function(pData) {
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184);
+      doc.text(`Page ${pData.pageNumber}`, pageWidth - 20, pageHeight - 8);
+      doc.text(`BCP Volunteer Services Accreditation Record [Official Document]`, 14, pageHeight - 8);
+    }
+  });
+
+  const ts = new Date().toISOString().slice(0, 10);
+  const filePrefix = isVerified ? 'BCP_Verified_Volunteers' : 'BCP_Volunteer_Applications';
+  doc.save(`${filePrefix}_${sessRole}_${ts}.pdf`);
+}
+
+function exportVolunteerExcel() {
+  const datasetInfo = getActiveVolunteerDataset();
+  window.location.href = `../shared/volunteer_actions.php?action=export_volunteers_excel&type=${datasetInfo.type}`;
+}
+
+function exportVolunteerCSV() {
+  const datasetInfo = getActiveVolunteerDataset();
+  window.location.href = `../shared/volunteer_actions.php?action=export_volunteers_csv&type=${datasetInfo.type}`;
+}
+
+function printVolunteerReport() {
+  const datasetInfo = getActiveVolunteerDataset();
+  const dataset = datasetInfo.data;
+
+  if (!dataset || !dataset.length) {
+    alert('No volunteer records available to print.');
+    return;
+  }
+
+  const isVerified = (datasetInfo.type === 'verified');
+  const printWin = window.open('', '_blank', 'width=1000,height=750');
+  let rowsHtml = '';
+  dataset.forEach((d, i) => {
+    rowsHtml += `
+      <tr>
+        <td style="text-align:center;">${i + 1}</td>
+        <td><strong>${d.student_name}</strong><br><small style="color:#64748b;">ID: ${d.student_number || 'N/A'}</small></td>
+        <td>${d.course || 'General Program'}</td>
+        <td>${d.club_name} (${d.club_code})</td>
+        <td><strong>${d.volunteer_role}</strong><br><small style="color:#64748b;">${d.event_title}</small></td>
+        <td style="text-align:center; font-weight:bold; color:#15803d;">${parseFloat(d.hours || 0).toFixed(1)}h</td>
+        <td style="text-align:center;">${isVerified ? (d.verified_at ? d.verified_at.slice(0, 10) : 'Verified') : (d.created_at ? d.created_at.slice(0, 10) : 'N/A')}</td>
+        <td style="text-align:center;">${d.status}</td>
+      </tr>
+    `;
+  });
+
+  printWin.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Bestlink College of the Philippines — Volunteer Records</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 25px; color: #0f172a; }
+        .hdr { border-bottom: 2px solid #1e3a8a; padding-bottom: 12px; margin-bottom: 16px; }
+        .hdr h1 { margin: 0; font-size: 18px; color: #1e3a8a; }
+        .hdr p { margin: 3px 0 0; font-size: 12px; color: #64748b; }
+        table { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-top: 10px; }
+        th { background: #1e3a8a; color: #fff; padding: 8px 10px; text-align: left; font-size: 11px; }
+        td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; }
+        tr:nth-child(even) { background: #f8fafc; }
+        .ftr { margin-top: 24px; font-size: 11px; color: #94a3b8; display: flex; justify-content: space-between; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+        @media print { body { margin: 0; } }
+      </style>
+    </head>
+    <body>
+      <div class="hdr">
+        <h1>BESTLINK COLLEGE OF THE PHILIPPINES</h1>
+        <p>Office of Student Affairs &bull; Supreme Student Council &bull; Co-Curricular Student Development</p>
+        <p style="margin-top:6px; font-weight:bold; color:#0f172a; font-size:13px;">${datasetInfo.title.toUpperCase()}</p>
+        <p>Export Scope: ${sessRole === 'ssc' ? 'Campus-Wide Council Oversight' : 'Organization Scoped'} &bull; Printed: ${new Date().toLocaleString()} &bull; Total Records: ${dataset.length}</p>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:35px; text-align:center;">#</th>
+            <th>Student Volunteer</th>
+            <th>Course / Program</th>
+            <th>Organization</th>
+            <th>Event &bull; Role</th>
+            <th style="text-align:center;">Hours</th>
+            <th style="text-align:center;">Date</th>
+            <th style="text-align:center;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+      </table>
+      <div class="ftr">
+        <span>Confidential Co-Curricular Volunteer Accreditation Record</span>
+        <span>Bestlink College of the Philippines</span>
+      </div>
+    </body>
+    </html>
+  `);
+  printWin.document.close();
+  printWin.focus();
+  setTimeout(() => { printWin.print(); }, 400);
 }
 
 // Organization Directory Style Filtering Logic

@@ -231,7 +231,7 @@ if (!function_exists('bcp_probe_db_profile')) {
             }
 
             // 2. If target DB didn't connect, try connecting without DB to select/create it
-            if (!$is_setup && !empty($target_db)) {
+            if (!$is_setup) {
                 $c2 = mysqli_init();
                 if ($c2) {
                     @$c2->options(MYSQLI_OPT_CONNECT_TIMEOUT, $timeout);
@@ -242,10 +242,50 @@ if (!function_exists('bcp_probe_db_profile')) {
                     } else {
                         $ok2 = @$c2->real_connect($host, $user, $pass, '', $port);
                     }
+
+                    // Retry with SSL if standard connect without DB failed
+                    if (!$ok2 && !in_array($host, ['127.0.0.1', 'localhost'], true)) {
+                        $c2ssl = mysqli_init();
+                        if ($c2ssl) {
+                            @$c2ssl->options(MYSQLI_OPT_CONNECT_TIMEOUT, $timeout);
+                            @$c2ssl->ssl_set(NULL, NULL, NULL, NULL, NULL);
+                            $flags = defined('MYSQLI_CLIENT_SSL_DONT_VERIFY_SERVER_CERT') ? MYSQLI_CLIENT_SSL_DONT_VERIFY_SERVER_CERT : 0;
+                            if (@$c2ssl->real_connect($host, $user, $pass, '', $port, NULL, $flags) && !$c2ssl->connect_error) {
+                                $c2 = $c2ssl;
+                                $ok2 = true;
+                            }
+                        }
+                    }
+
                     if ($ok2 && !$c2->connect_error) {
-                        @$c2->query("CREATE DATABASE IF NOT EXISTS `" . $target_db . "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-                        if (@$c2->select_db($target_db)) {
+                        $dbs = [];
+                        $q = @$c2->query("SHOW DATABASES");
+                        if ($q) {
+                            while ($r = $q->fetch_row()) $dbs[] = $r[0];
+                        }
+                        $user_dbs = array_diff($dbs, ['information_schema', 'mysql', 'performance_schema', 'sys']);
+
+                        $chosen_db = null;
+                        if (!empty($target_db) && in_array($target_db, $dbs, true)) {
+                            $chosen_db = $target_db;
+                        } elseif (in_array('railway', $dbs, true)) {
+                            $chosen_db = 'railway';
+                        } elseif (in_array('sms_db', $dbs, true)) {
+                            $chosen_db = 'sms_db';
+                        } elseif (!empty($user_dbs)) {
+                            $chosen_db = reset($user_dbs);
+                        }
+
+                        if ($chosen_db && @$c2->select_db($chosen_db)) {
+                            $GLOBALS['__bcp_active_discovered_db'] = $chosen_db;
                             return $c2;
+                        }
+
+                        if (!empty($target_db)) {
+                            @$c2->query("CREATE DATABASE IF NOT EXISTS `" . $target_db . "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+                            if (@$c2->select_db($target_db)) {
+                                return $c2;
+                            }
                         }
                     }
                 }
@@ -381,17 +421,19 @@ if (!$conn) {
         'db'   => $db
     ];
 
-    // 4. Docker Compose fallback
-    $connection_profiles[] = [
-        'host' => 'db',
-        'port' => 3306,
-        'user' => 'sms_user',
-        'pass' => 'sms_secure_password',
-        'db'   => $db ?: 'sms_db'
-    ];
+    // 4. Docker Compose fallback (only for local Docker, NOT Railway/Cloud)
+    if (!$is_railway && !$has_cloud_env && !$is_local_env) {
+        $connection_profiles[] = [
+            'host' => 'db',
+            'port' => 3306,
+            'user' => 'sms_user',
+            'pass' => 'sms_secure_password',
+            'db'   => $db ?: 'sms_db'
+        ];
+    }
 
     // 5. Local fallback if not added previously
-    if (!$is_local_env && !$is_railway) {
+    if (!$is_local_env && !$is_railway && !$has_cloud_env) {
         $connection_profiles[] = [
             'host' => '127.0.0.1',
             'port' => 3306,
@@ -403,6 +445,7 @@ if (!$conn) {
 
     // Test candidate profiles
     $probe_timeout = $has_cloud_env ? 5 : 1;
+    $probe_errors = [];
     foreach ($connection_profiles as $p) {
         if (empty($p['host'])) continue;
         $c = bcp_probe_db_profile($p, $is_setup_script, $probe_timeout);
@@ -414,15 +457,19 @@ if (!$conn) {
             $port = (int)$p['port'];
             $user = $p['user'];
             $pass = $p['pass'];
-            $db   = $p['db'];
+            $db   = !empty($GLOBALS['__bcp_active_discovered_db']) ? $GLOBALS['__bcp_active_discovered_db'] : $p['db'];
 
             // Save winning profile to runtime cache for instant subsequent requests
+            $p['db'] = $db;
             @file_put_contents($cache_file, json_encode($p, JSON_UNESCAPED_SLASHES));
             break;
+        } else {
+            $last_err = $GLOBALS['__bcp_last_probe_error'] ?? 'connection failed';
+            $probe_errors[] = $last_err;
         }
     }
     if (!$conn) {
-        $db_error = $GLOBALS['__bcp_last_probe_error'] ?? 'Unable to connect to MySQL database service.';
+        $db_error = implode('; ', array_unique($probe_errors));
     }
 }
 

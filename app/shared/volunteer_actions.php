@@ -221,10 +221,17 @@ if ($action === 'apply_volunteer') {
     exit;
 }
 
-// ── 2. VERIFY VOLUNTEER ROLE & HOURS (Club Adviser, SSC, Admin) ───────
+// ── 2. VERIFY VOLUNTEER ROLE & HOURS (Faculty Club Adviser & Admin Only) ───────
 if ($action === 'verify_volunteer') {
-    if (!in_array($sess_role, ['club_adviser', 'ssc', 'admin'])) {
-        echo json_encode(['success' => false, 'message' => 'Permission denied. Only organization advisers and administrators can verify volunteer hours.']);
+    if ($sess_role === 'ssc') {
+        echo json_encode([
+            'success' => false, 
+            'message' => 'Permission denied. SSC officers have institutional oversight and cannot verify or reject volunteer hours. Verification is conducted by respective faculty club advisers and administrators.'
+        ]);
+        exit;
+    }
+    if (!in_array($sess_role, ['club_adviser', 'admin'])) {
+        echo json_encode(['success' => false, 'message' => 'Permission denied. Only organization faculty advisers and administrators can verify volunteer hours.']);
         exit;
     }
 
@@ -443,6 +450,159 @@ if ($action === 'create_opportunity') {
         echo json_encode(['success' => false, 'message' => 'Database error: ' . $conn->error]);
     }
     exit;
+}
+
+// ── 5. EXPORT VOLUNTEER RECORDS (CSV / Excel) (Adviser, SSC, Admin) ───
+if ($action === 'export_volunteers_csv' || $action === 'export_volunteers_excel') {
+    if (!in_array($sess_role, ['club_adviser', 'ssc', 'admin', 'super_admin', 'staff'], true)) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Permission denied.']);
+        exit;
+    }
+
+    $type = trim($_GET['type'] ?? 'all'); // 'pending', 'verified', 'all'
+    $where = ["1=1"];
+
+    if ($sess_role === 'club_adviser') {
+        $assigned = get_user_assigned_clubs($conn, $user_id, $sess_role);
+        $club_ids = array_map('intval', array_column($assigned, 'id'));
+        if (!empty($club_ids)) {
+            $in_c = implode(',', $club_ids);
+            $where[] = "vl.club_id IN ($in_c)";
+        } else {
+            $where[] = "0=1";
+        }
+    }
+    // SSC and Admin have campus-wide institutional oversight: no club restriction!
+
+    if ($type === 'pending') {
+        $where[] = "vl.status = 'Pending Verification'";
+    } elseif ($type === 'verified') {
+        $where[] = "vl.status = 'Verified'";
+    }
+
+    $where_sql = implode(' AND ', $where);
+
+    $sql = "
+        SELECT vl.*, e.title as event_title, e.event_date, e.venue,
+               c.name as club_name, c.code as club_code, c.program as club_program,
+               u_adv.first_name as adv_first, u_adv.last_name as adv_last
+        FROM volunteer_logs vl
+        JOIN events e ON e.id = vl.event_id
+        JOIN clubs c ON c.id = vl.club_id
+        LEFT JOIN users u_adv ON u_adv.id = vl.verified_by
+        WHERE $where_sql
+        ORDER BY vl.created_at DESC
+    ";
+
+    $res = $conn->query($sql);
+    $records = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
+
+    if (function_exists('log_audit')) {
+        log_audit($conn, $user_id, 'export_volunteers', 'volunteer_logs', 0, "Exported " . count($records) . " volunteer records ($action, type=$type)");
+    }
+
+    $roleLabel = ($sess_role === 'ssc') ? 'SSC_Council' : (($sess_role === 'club_adviser') ? 'Adviser' : 'Institutional');
+    $dateStamp = date('Y-m-d_His');
+
+    if ($action === 'export_volunteers_csv') {
+        header('Content-Type: text/csv; charset=UTF-8');
+        header("Content-Disposition: attachment; filename=\"BCP_Volunteer_Records_{$roleLabel}_{$dateStamp}.csv\"");
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        $output = fopen('php://output', 'w');
+        // UTF-8 BOM for Microsoft Excel compatibility
+        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+
+        fputcsv($output, [
+            'Record ID',
+            'Student Name',
+            'Student Number',
+            'Course / Program',
+            'Year Level',
+            'Host Organization',
+            'Campus Event',
+            'Volunteer Role',
+            'Credited Hours',
+            'Date Submitted',
+            'Status',
+            'Verified By',
+            'Verified Date',
+            'Adviser Remarks'
+        ]);
+
+        foreach ($records as $r) {
+            $advName = trim(($r['adv_first'] ?? '') . ' ' . ($r['adv_last'] ?? ''));
+            fputcsv($output, [
+                $r['id'],
+                $r['student_name'],
+                $r['student_number'] ?: 'N/A',
+                $r['course'] ?: 'General Program',
+                $r['year_level'] ?: '',
+                $r['club_name'] . ' (' . $r['club_code'] . ')',
+                $r['event_title'],
+                $r['volunteer_role'],
+                number_format((float)$r['hours'], 1),
+                $r['created_at'],
+                $r['status'],
+                $advName ?: 'N/A',
+                $r['verified_at'] ?: 'N/A',
+                $r['verification_notes'] ?: ''
+            ]);
+        }
+        fclose($output);
+        exit;
+    }
+
+    if ($action === 'export_volunteers_excel') {
+        header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+        header("Content-Disposition: attachment; filename=\"BCP_Volunteer_Records_{$roleLabel}_{$dateStamp}.xls\"");
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+        echo '<head><meta charset="UTF-8">';
+        echo '<style>';
+        echo 'table { border-collapse: collapse; width: 100%; font-family: Calibri, Arial, sans-serif; font-size: 11pt; }';
+        echo 'th { background-color: #1e3a8a; color: #ffffff; font-weight: bold; border: 1px solid #94a3b8; padding: 8px; text-align: left; }';
+        echo 'td { border: 1px solid #cbd5e1; padding: 6px 8px; vertical-align: middle; }';
+        echo 'tr:nth-child(even) { background-color: #f8fafc; }';
+        echo '.title { font-size: 15pt; font-weight: bold; color: #1e3a8a; margin-bottom: 4px; }';
+        echo '.sub { font-size: 10pt; color: #64748b; margin-bottom: 10px; }';
+        echo '</style></head><body>';
+        echo '<div class="title">BESTLINK COLLEGE OF THE PHILIPPINES</div>';
+        echo '<div class="sub">Office of Student Affairs &bull; Official Volunteer Hours &amp; Community Service Report</div>';
+        echo '<div class="sub">Role View: <b>' . strtoupper($sess_role) . '</b> | Scope: ' . ($sess_role === 'ssc' ? 'Campus-Wide Council Oversight' : 'Organization Scoped') . ' | Exported: ' . date('F d, Y, g:i A') . ' | Total Records: ' . count($records) . '</div>';
+        echo '<table>';
+        echo '<thead><tr>';
+        echo '<th>#</th><th>Student Volunteer</th><th>Student ID</th><th>Course / Program</th><th>Year</th><th>Organization</th><th>Campus Event</th><th>Volunteer Role</th><th>Hours</th><th>Date Submitted</th><th>Status</th><th>Verified By</th><th>Verified Date</th><th>Adviser Remarks</th>';
+        echo '</tr></thead><tbody>';
+
+        $idx = 1;
+        foreach ($records as $r) {
+            $advName = trim(($r['adv_first'] ?? '') . ' ' . ($r['adv_last'] ?? ''));
+            echo '<tr>';
+            echo '<td>' . $idx++ . '</td>';
+            echo '<td><b>' . htmlspecialchars($r['student_name']) . '</b></td>';
+            echo '<td>' . htmlspecialchars($r['student_number'] ?: 'N/A') . '</td>';
+            echo '<td>' . htmlspecialchars($r['course'] ?: 'General Program') . '</td>';
+            echo '<td>' . htmlspecialchars($r['year_level'] ?: '') . '</td>';
+            echo '<td>' . htmlspecialchars($r['club_name'] . ' (' . $r['club_code'] . ')') . '</td>';
+            echo '<td>' . htmlspecialchars($r['event_title']) . '</td>';
+            echo '<td>' . htmlspecialchars($r['volunteer_role']) . '</td>';
+            echo '<td style="font-weight:bold; color:#15803d;">' . number_format((float)$r['hours'], 1) . 'h</td>';
+            echo '<td>' . date('M d, Y', strtotime($r['created_at'])) . '</td>';
+            echo '<td>' . htmlspecialchars($r['status']) . '</td>';
+            echo '<td>' . htmlspecialchars($advName ?: 'Pending') . '</td>';
+            echo '<td>' . ($r['verified_at'] ? date('M d, Y', strtotime($r['verified_at'])) : '—') . '</td>';
+            echo '<td>' . htmlspecialchars($r['verification_notes'] ?: '—') . '</td>';
+            echo '</tr>';
+        }
+
+        echo '</tbody></table></body></html>';
+        exit;
+    }
 }
 
 echo json_encode(['success' => false, 'message' => 'Invalid action.']);

@@ -1549,25 +1549,61 @@ body:has(.sidebar.collapsed) .toast {
 
   /* Sidebar off-canvas overlay */
   .sidebar {
-    width: 240px;
-    max-width: 80vw;
-    transform: translateX(-100%);
-    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: none;
-    z-index: 1000;
-    overflow-y: auto;
-    overflow-x: hidden;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    width: 260px !important;
+    max-width: 82vw !important;
+    transform: translateX(-100%) !important;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.28s ease, visibility 0.28s ease !important;
+    box-shadow: none !important;
+    z-index: 1000 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
   }
 
   /* When hamburger opens it, slide in over content as overlay */
-  .sidebar:not(.collapsed) {
-    transform: translateX(0);
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
+  .sidebar.open,
+  .sidebar.active,
+  body.sidebar-open .sidebar {
+    transform: translateX(0) !important;
+    box-shadow: 8px 0 32px rgba(15, 23, 42, 0.45) !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
   }
 
   .sidebar.collapsed {
-    transform: translateX(-100%);
-    box-shadow: none;
+    transform: translateX(-100%) !important;
+    box-shadow: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  /* Universal Sidebar Backdrop Overlay for Mobile */
+  .sidebar-overlay {
+    display: block !important;
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(15, 23, 42, 0.65) !important;
+    backdrop-filter: blur(2px) !important;
+    -webkit-backdrop-filter: blur(2px) !important;
+    z-index: 999 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity 0.25s ease, visibility 0.25s ease !important;
+    visibility: hidden !important;
+  }
+
+  .sidebar-overlay.active,
+  body.sidebar-open .sidebar-overlay {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    visibility: visible !important;
   }
 
   /* Main content fills full width; prevent body from overflowing */
@@ -1981,20 +2017,6 @@ body:has(.sidebar.collapsed) .toast {
   }
 }
 
-/* ── Overlay to close sidebar on mobile tap-outside ── */
-@media (max-width: 768px) {
-  .sidebar-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.4);
-    z-index: 199;
-  }
-
-  .sidebar-overlay.active {
-    display: block;
-  }
-}
 
 .pagination-toolbar {
   display: flex !important;
@@ -6070,90 +6092,168 @@ td.empty-state-cell > * {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   RESPONSIVE MOBILE CARD-LIKE TABLE TRANSFORMATION SYSTEM
-   Converts table rows into elevated cards with every column 
-   labeled as a field and all actions intact on small/mobile screens.
+   RESPONSIVE TABLE SYSTEM (Mobile Touch Scrolling & Clean Layout)
+   Ensures all tables preserve headers, column data, and scroll
+   smoothly within their container without breaking page margins.
    ═══════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
-  /* 1. Container & Wrappers: remove fixed horizontal constraints */
+  /* 1. Container & Wrappers: preserve clean responsive scrolling card */
   .table-wrap,
   .table-responsive,
   .resp-table-wrap,
   .ledger-table-wrap,
   .mobile-cards-wrap {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    overflow-x: visible !important;
-    overflow-y: visible !important;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
     padding: 0 !important;
-    border-radius: 0 !important;
     margin-bottom: var(--space-4) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+    scrollbar-width: thin !important;
   }
 
-  /* 2. Table: reset table layout to block flow */
+  /* 2. Standard Data Tables: preserve clean tabular alignment and visible headers */
   .table-wrap table,
   .table-responsive table,
   .resp-table-wrap table,
   .ledger-table-wrap table,
   table.table-wide,
-  table.responsive-table,
-  table.mobile-card-table,
-  .table-wrap table#userTable,
-  .table-wrap table#auditTable,
-  .table-wrap table#budgetLedgerTable,
-  .table-wrap table#eventAttendeeTable,
-  .table-wrap table#studentOrgRosterTable,
-  .table-wrap table#queueTable,
-  .table-wrap table#masterRosterTable,
-  .table-wrap table#orgGovernanceTable,
-  .table-wrap table#clubMasterTable,
-  .table-wrap table#eventTable,
-  .table-wrap table#achTable,
-  .table-wrap table#certLedgerTable,
-  .table-wrap table#pastElectionsTable {
-    display: block !important;
+  table.responsive-table {
+    display: table !important;
     width: 100% !important;
-    min-width: 0 !important;
-    border-collapse: separate !important;
+    min-width: 580px !important;
+    border-collapse: collapse !important;
     border-spacing: 0 !important;
-    border: none !important;
-    background: transparent !important;
+    background: #ffffff !important;
   }
 
-  /* 3. Thead: hide standard desktop column headers */
   .table-wrap table thead,
   .table-responsive table thead,
   .resp-table-wrap table thead,
   .ledger-table-wrap table thead,
   table.table-wide thead,
-  table.responsive-table thead,
-  table.mobile-card-table thead {
-    display: none !important;
+  table.responsive-table thead {
+    display: table-header-group !important;
   }
 
-  /* 4. Tbody: vertical stack of card items */
+  .table-wrap table thead th,
+  .table-responsive table thead th,
+  .resp-table-wrap table thead th,
+  .ledger-table-wrap table thead th,
+  table.table-wide thead th,
+  table.responsive-table thead th {
+    display: table-cell !important;
+    background: #f8fafc !important;
+    color: #475569 !important;
+    font-weight: 700 !important;
+    font-size: 0.74rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.4px !important;
+    padding: 10px 12px !important;
+    white-space: nowrap !important;
+    border-bottom: 2px solid #e2e8f0 !important;
+  }
+
   .table-wrap table tbody,
   .table-responsive table tbody,
   .resp-table-wrap table tbody,
   .ledger-table-wrap table tbody,
   table.table-wide tbody,
-  table.responsive-table tbody,
-  table.mobile-card-table tbody {
+  table.responsive-table tbody {
+    display: table-row-group !important;
+  }
+
+  .table-wrap table tbody tr,
+  .table-responsive table tbody tr,
+  .resp-table-wrap table tbody tr,
+  .ledger-table-wrap table tbody tr,
+  table.table-wide tbody tr,
+  table.responsive-table tbody tr {
+    display: table-row !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    background: #ffffff !important;
+  }
+
+  .table-wrap table tbody tr:hover,
+  .table-responsive table tbody tr:hover,
+  .resp-table-wrap table tbody tr:hover,
+  .ledger-table-wrap table tbody tr:hover,
+  table.table-wide tbody tr:hover,
+  table.responsive-table tbody tr:hover {
+    background: #f8fafc !important;
+  }
+
+  .table-wrap table tbody td,
+  .table-responsive table tbody td,
+  .resp-table-wrap table tbody td,
+  .ledger-table-wrap table tbody td,
+  table.table-wide tbody td,
+  table.responsive-table tbody td {
+    display: table-cell !important;
+    padding: 10px 12px !important;
+    font-size: 0.81rem !important;
+    color: #1e293b !important;
+    vertical-align: middle !important;
+    white-space: normal !important;
+  }
+
+  /* Don't show redundant data-label pseudo elements in standard table mode */
+  .table-wrap table tbody td::before,
+  .table-responsive table tbody td::before,
+  .resp-table-wrap table tbody td::before,
+  .ledger-table-wrap table tbody td::before,
+  table.table-wide tbody td::before,
+  table.responsive-table tbody td::before {
+    display: none !important;
+    content: none !important;
+  }
+
+  /* Table action buttons: keep aligned without overflowing */
+  .table-wrap table tbody td .action-btn-group,
+  .table-wrap table tbody td .actions-group,
+  .table-wrap table tbody td .event-act-group,
+  .table-wrap table tbody td .btn-group,
+  .table-wrap table tbody td .act-btns {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex-wrap: nowrap !important;
+    white-space: nowrap !important;
+  }
+
+  .table-wrap table tbody td .action-btn-group .act-btn,
+  .table-wrap table tbody td .actions-group button,
+  .table-wrap table tbody td .actions-group .card-btn,
+  .table-wrap table tbody td .actions-group a,
+  .table-wrap table tbody td .btn-group button,
+  .table-wrap table tbody td .act-btns button,
+  .table-wrap table tbody td .card-btn {
+    min-height: 32px !important;
+    padding: 6px 10px !important;
+    font-size: 0.78rem !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Hide thead only for explicit card-mode tables */
+  table.force-card-view thead {
+    display: none !important;
+  }
+
+  /* 4. Optional card-mode tables */
+  table.force-card-view tbody {
     display: flex !important;
     flex-direction: column !important;
     gap: 10px !important;
     width: 100% !important;
   }
 
-  /* 5. Row as a Standalone Card (a little bit smaller on mobile) */
-  .table-wrap table tbody tr:not([style*="display: none"]):not([style*="display:none"]):not(.is-hidden):not([hidden]),
-  .table-responsive table tbody tr:not([style*="display: none"]):not([style*="display:none"]):not(.is-hidden):not([hidden]),
-  .resp-table-wrap table tbody tr:not([style*="display: none"]):not([style*="display:none"]):not(.is-hidden):not([hidden]),
-  .ledger-table-wrap table tbody tr:not([style*="display: none"]):not([style*="display:none"]):not(.is-hidden):not([hidden]),
-  table.table-wide tbody tr:not([style*="display: none"]):not([style*="display:none"]):not(.is-hidden):not([hidden]),
-  table.responsive-table tbody tr:not([style*="display: none"]):not([style*="display:none"]):not(.is-hidden):not([hidden]),
-  table.mobile-card-table tbody tr:not([style*="display: none"]):not([style*="display:none"]):not(.is-hidden):not([hidden]) {
+  table.force-card-view tbody tr:not([style*="display: none"]):not([style*="display:none"]):not(.is-hidden):not([hidden]) {
     display: flex !important;
     flex-direction: column !important;
     background: #ffffff !important;
@@ -6164,329 +6264,261 @@ td.empty-state-cell > * {
     width: 100% !important;
     box-sizing: border-box !important;
     position: relative !important;
-    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease !important;
   }
 
-  .table-wrap table tbody tr:hover,
-  .table-responsive table tbody tr:hover,
-  .resp-table-wrap table tbody tr:hover,
-  .ledger-table-wrap table tbody tr:hover,
-  table.table-wide tbody tr:hover,
-  table.responsive-table tbody tr:hover,
-  table.mobile-card-table tbody tr:hover {
-    border-color: #cbd5e1 !important;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08) !important;
-  }
-
-  /* CRITICAL: Explicitly force hidden and paginated rows to remain hidden */
-  .table-wrap table tbody tr[style*="display: none"],
-  .table-wrap table tbody tr[style*="display:none"],
-  .table-wrap table tbody tr.is-hidden,
-  .table-wrap table tbody tr.filtered-out,
-  .table-wrap table tbody tr[hidden],
-  .table-responsive table tbody tr[style*="display: none"],
-  .table-responsive table tbody tr[style*="display:none"],
-  .table-responsive table tbody tr.is-hidden,
-  .table-responsive table tbody tr.filtered-out,
-  .table-responsive table tbody tr[hidden],
-  table.table-wide tbody tr[style*="display: none"],
-  table.table-wide tbody tr[style*="display:none"],
-  table.table-wide tbody tr.is-hidden,
-  table.table-wide tbody tr.filtered-out,
-  table.table-wide tbody tr[hidden],
-  table.mobile-card-table tbody tr[style*="display: none"],
-  table.mobile-card-table tbody tr[style*="display:none"],
-  table.mobile-card-table tbody tr.is-hidden,
-  table.mobile-card-table tbody tr.filtered-out,
-  table.mobile-card-table tbody tr[hidden] {
+  table.force-card-view tbody tr[style*="display: none"],
+  table.force-card-view tbody tr[style*="display:none"],
+  table.force-card-view tbody tr.is-hidden,
+  table.force-card-view tbody tr.filtered-out,
+  table.force-card-view tbody tr[hidden] {
     display: none !important;
   }
 
-  /* 6. Empty State Row (Single unified notice card) */
-  .table-wrap table tbody tr:has(td.table-empty-cell),
-  .table-wrap table tbody tr:has(td.empty-state-cell),
-  .table-wrap table tbody tr:has(td[colspan]),
-  .table-wrap table tbody tr.empty-card-row,
-  .table-responsive table tbody tr:has(td.table-empty-cell),
-  .table-responsive table tbody tr:has(td.empty-state-cell),
-  .table-responsive table tbody tr:has(td[colspan]),
-  .resp-table-wrap table tbody tr:has(td.table-empty-cell),
-  .resp-table-wrap table tbody tr:has(td.empty-state-cell),
-  .resp-table-wrap table tbody tr:has(td[colspan]),
-  .ledger-table-wrap table tbody tr:has(td.table-empty-cell),
-  .ledger-table-wrap table tbody tr:has(td.empty-state-cell),
-  .ledger-table-wrap table tbody tr:has(td[colspan]),
-  table.table-wide tbody tr:has(td.table-empty-cell),
-  table.table-wide tbody tr:has(td.empty-state-cell),
-  table.table-wide tbody tr:has(td[colspan]),
-  table.responsive-table tbody tr:has(td.table-empty-cell),
-  table.responsive-table tbody tr:has(td.empty-state-cell),
-  table.responsive-table tbody tr:has(td[colspan]),
-  table.mobile-card-table tbody tr:has(td.table-empty-cell),
-  table.mobile-card-table tbody tr:has(td.empty-state-cell),
-  table.mobile-card-table tbody tr:has(td[colspan]) {
-    display: flex !important;
-    flex-direction: column !important;
-    background: #f8fafc !important;
-    border: 1.5px dashed #cbd5e1 !important;
-    border-radius: 14px !important;
-    padding: 28px 16px !important;
-    text-align: center !important;
-    align-items: center !important;
-    justify-content: center !important;
-    box-shadow: none !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-  }
-
-  .table-wrap table tbody td.table-empty-cell,
-  .table-wrap table tbody td.empty-state-cell,
-  .table-wrap table tbody td[colspan],
-  .table-responsive table tbody td.table-empty-cell,
-  .table-responsive table tbody td.empty-state-cell,
-  .table-responsive table tbody td[colspan],
-  .resp-table-wrap table tbody td.table-empty-cell,
-  .resp-table-wrap table tbody td.empty-state-cell,
-  .resp-table-wrap table tbody td[colspan],
-  .ledger-table-wrap table tbody td.table-empty-cell,
-  .ledger-table-wrap table tbody td.empty-state-cell,
-  .ledger-table-wrap table tbody td[colspan],
-  table.table-wide tbody td.table-empty-cell,
-  table.table-wide tbody td.empty-state-cell,
-  table.table-wide tbody td[colspan],
-  table.responsive-table tbody td.table-empty-cell,
-  table.responsive-table tbody td.empty-state-cell,
-  table.responsive-table tbody td[colspan],
-  table.mobile-card-table tbody td.table-empty-cell,
-  table.mobile-card-table tbody td.empty-state-cell,
-  table.mobile-card-table tbody td[colspan] {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 100% !important;
-    border: none !important;
-    padding: 0 !important;
-    text-align: center !important;
-    background: transparent !important;
-    box-sizing: border-box !important;
-  }
-
-  .table-wrap table tbody td.table-empty-cell > *,
-  .table-wrap table tbody td.empty-state-cell > *,
-  .table-wrap table tbody td[colspan] > *,
-  .table-responsive table tbody td.table-empty-cell > *,
-  .table-responsive table tbody td.empty-state-cell > *,
-  .table-responsive table tbody td[colspan] > *,
-  .resp-table-wrap table tbody td[colspan] > *,
-  .ledger-table-wrap table tbody td[colspan] > *,
-  table.table-wide tbody td[colspan] > *,
-  table.responsive-table tbody td[colspan] > *,
-  table.mobile-card-table tbody td.table-empty-cell > *,
-  table.mobile-card-table tbody td.empty-state-cell > *,
-  table.mobile-card-table tbody td[colspan] > * {
-    max-width: 100% !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
-    text-align: center !important;
-    align-self: center !important;
-  }
-
-  .table-wrap table tbody td[colspan] i,
-  .table-responsive table tbody td[colspan] i,
-  .resp-table-wrap table tbody td[colspan] i,
-  .ledger-table-wrap table tbody td[colspan] i,
-  table.table-wide tbody td[colspan] i,
-  table.responsive-table tbody td[colspan] i,
-  table.mobile-card-table tbody td[colspan] i,
-  td.empty-state-cell i,
-  .empty-state-icon {
-    margin-left: auto !important;
-    margin-right: auto !important;
-    text-align: center !important;
-    align-self: center !important;
-    display: block !important;
-  }
-
-  .table-wrap table tbody td.table-empty-cell::before,
-  .table-wrap table tbody td.empty-state-cell::before,
-  .table-wrap table tbody td[colspan]::before,
-  .table-responsive table tbody td.table-empty-cell::before,
-  .table-responsive table tbody td.empty-state-cell::before,
-  .table-responsive table tbody td[colspan]::before,
-  table.mobile-card-table tbody td.table-empty-cell::before,
-  table.mobile-card-table tbody td.empty-state-cell::before,
-  table.mobile-card-table tbody td[colspan]::before {
-    display: none !important;
-    content: none !important;
-  }
-
-  /* 7. Column Cells as Field Rows */
-  .table-wrap table tbody td,
-  .table-responsive table tbody td,
-  .resp-table-wrap table tbody td,
-  .ledger-table-wrap table tbody td,
-  table.table-wide tbody td,
-  table.responsive-table tbody td,
-  table.mobile-card-table tbody td {
+  /* 5. Optional Dedicated card-mode tables only */
+  table.force-card-view tbody td {
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
     padding: 6px 0 !important;
     border-bottom: 1px solid #f1f5f9 !important;
     font-size: 0.80rem !important;
-    color: #1e293b !important;
-    background: transparent !important;
     text-align: right !important;
     width: 100% !important;
     box-sizing: border-box !important;
-    gap: 8px !important;
-    min-width: 0 !important;
   }
-
-  .table-wrap table tbody td:first-child,
-  .table-responsive table tbody td:first-child {
-    padding-left: 0 !important;
-  }
-
-  .table-wrap table tbody td:last-child,
-  .table-responsive table tbody td:last-child {
-    padding-right: 0 !important;
-    border-bottom: none !important;
-  }
-
-  /* 8. Column Field Label Pseudo-Element */
-  .table-wrap table tbody td::before,
-  .table-responsive table tbody td::before,
-  .resp-table-wrap table tbody td::before,
-  .ledger-table-wrap table tbody td::before,
-  table.table-wide tbody td::before,
-  table.responsive-table tbody td::before,
-  table.mobile-card-table tbody td::before {
+  table.force-card-view tbody td::before {
     content: attr(data-label);
+    display: inline-block !important;
     font-weight: 700 !important;
     font-size: 0.68rem !important;
     text-transform: uppercase !important;
-    letter-spacing: 0.04em !important;
     color: #64748b !important;
     text-align: left !important;
-    flex-shrink: 0 !important;
-    max-width: 48% !important;
-    line-height: 1.3 !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   UNIVERSAL MOBILE RESPONSIVE ENHANCEMENTS
+   Covers Page Title Bars, Action Buttons, Navigation Tabs,
+   KPI Grids, Filters, Modals, and Touch Interfaces
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 1. Global Viewport & Container Overflow Shield */
+@media (max-width: 900px) {
+  html,
+  body {
+    overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    position: relative !important;
+    -webkit-text-size-adjust: 100%;
   }
 
-  .table-wrap table tbody td:not([data-label])::before,
-  .table-wrap table tbody td[data-label=""]::before,
-  .table-responsive table tbody td:not([data-label])::before,
-  .table-responsive table tbody td[data-label=""]::before,
-  table.mobile-card-table tbody td:not([data-label])::before,
-  table.mobile-card-table tbody td[data-label=""]::before {
-    display: none !important;
-    content: none !important;
+  .main,
+  .content,
+  .content-body {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
   }
+}
 
-  /* 9. Multiline / Detailed cell values (scoped to non-empty data cells) */
-  .table-wrap table tbody td:not([colspan]):not(.table-empty-cell):not(.empty-state-cell) > *,
-  .table-responsive table tbody td:not([colspan]):not(.table-empty-cell):not(.empty-state-cell) > *,
-  .resp-table-wrap table tbody td:not([colspan]):not(.table-empty-cell):not(.empty-state-cell) > *,
-  .ledger-table-wrap table tbody td:not([colspan]):not(.table-empty-cell):not(.empty-state-cell) > *,
-  table.table-wide tbody td:not([colspan]):not(.table-empty-cell):not(.empty-state-cell) > *,
-  table.responsive-table tbody td:not([colspan]):not(.table-empty-cell):not(.empty-state-cell) > *,
-  table.mobile-card-table tbody td:not([colspan]):not(.table-empty-cell):not(.empty-state-cell) > * {
-    max-width: 62%;
-    word-break: break-word;
-  }
+/* 2. Horizontal Scrolling Tab Navigation */
+.vol-nav-tabs,
+.comm-nav-tabs,
+.chat-nav-tabs,
+.att-tabs-nav-scroll,
+.nav-tabs,
+.sub-nav,
+.tabs-wrap {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  scrollbar-width: thin !important;
+  padding-bottom: 4px !important;
+  gap: 8px !important;
+}
 
-  /* When cell contains descriptions, notes, or stacked headers */
-  .table-wrap table tbody td.cell-stacked,
-  .table-wrap table tbody td:has(.req-desc-excerpt),
-  .table-wrap table tbody td:has(.org-name-text),
-  .table-wrap table tbody td:has(p),
-  table.mobile-card-table tbody td.cell-stacked {
-    align-items: flex-start !important;
-  }
+.vol-nav-tabs > *,
+.comm-nav-tabs > *,
+.chat-nav-tabs > *,
+.att-tabs-nav-scroll > *,
+.nav-tabs > *,
+.sub-nav > *,
+.tabs-wrap > * {
+  flex-shrink: 0 !important;
+  white-space: nowrap !important;
+}
 
-  /* 10. Action Cell: Full width container with all buttons accessible */
-  .table-wrap table tbody td.actions-cell,
-  .table-wrap table tbody td[data-label="Action"],
-  .table-wrap table tbody td[data-label="Actions"],
-  .table-wrap table tbody td[data-label="Quick Actions"],
-  .table-wrap table tbody td:last-child:has(.action-btn-group),
-  .table-wrap table tbody td:last-child:has(.actions-group),
-  .table-wrap table tbody td:last-child:has(.btn-group),
-  .table-wrap table tbody td:last-child:has(.act-btns),
-  .table-wrap table tbody td:last-child:has(button),
-  .table-wrap table tbody td:last-child:has(a.card-btn),
-  .table-wrap table tbody td:last-child:has(.card-btn) {
+/* 3. Page Title Bar & Action Groups Responsive Layout */
+@media (max-width: 640px) {
+  .page-title-bar {
     display: flex !important;
     flex-direction: column !important;
     align-items: stretch !important;
-    justify-content: flex-start !important;
-    border-top: 1px solid #e2e8f0 !important;
-    border-bottom: none !important;
-    padding-top: 13px !important;
-    padding-bottom: 2px !important;
-    margin-top: 5px !important;
+    gap: 12px !important;
+    padding: 12px 14px !important;
+    margin-bottom: 14px !important;
     width: 100% !important;
-    text-align: left !important;
+    box-sizing: border-box !important;
   }
 
-  .table-wrap table tbody td.actions-cell > *,
-  .table-wrap table tbody td[data-label="Action"] > *,
-  .table-wrap table tbody td[data-label="Actions"] > *,
-  .table-wrap table tbody td:last-child:has(.action-btn-group) > *,
-  .table-wrap table tbody td:last-child:has(.actions-group) > *,
-  .table-wrap table tbody td:last-child:has(.btn-group) > *,
-  .table-wrap table tbody td:last-child:has(.act-btns) > *,
-  .table-wrap table tbody td:last-child:has(button) > * {
-    max-width: 100% !important;
+  .page-title-bar > div:first-child {
+    width: 100% !important;
   }
 
-  .table-wrap table tbody td.actions-cell::before,
-  .table-wrap table tbody td[data-label="Action"]::before,
-  .table-wrap table tbody td[data-label="Actions"]::before,
-  .table-wrap table tbody td:last-child:has(.action-btn-group)::before,
-  .table-wrap table tbody td:last-child:has(.actions-group)::before,
-  .table-wrap table tbody td:last-child:has(.btn-group)::before,
-  .table-wrap table tbody td:last-child:has(.act-btns)::before,
-  .table-wrap table tbody td:last-child:has(button)::before {
-    display: block !important;
-    margin-bottom: 8px !important;
-    color: #94a3b8 !important;
-    font-size: 0.70rem !important;
-    max-width: 100% !important;
-  }
-
-  /* Button Groups inside Mobile Cards */
-  .table-wrap table tbody td .action-btn-group,
-  .table-wrap table tbody td .actions-group,
-  .table-wrap table tbody td .event-act-group,
-  .table-wrap table tbody td .btn-group,
-  .table-wrap table tbody td .act-btns,
-  table.mobile-card-table tbody td .action-btn-group,
-  table.mobile-card-table tbody td .actions-group {
+  .page-title-bar > div:last-child {
+    width: 100% !important;
     display: flex !important;
-    align-items: center !important;
-    justify-content: flex-end !important;
     flex-wrap: wrap !important;
     gap: 8px !important;
-    width: 100% !important;
+    justify-content: flex-start !important;
   }
 
-  .table-wrap table tbody td .action-btn-group .act-btn,
-  .table-wrap table tbody td .actions-group button,
-  .table-wrap table tbody td .actions-group .card-btn,
-  .table-wrap table tbody td .actions-group a,
-  .table-wrap table tbody td .btn-group button,
-  .table-wrap table tbody td .act-btns button,
-  .table-wrap table tbody td .card-btn {
-    min-height: 38px !important;
-    padding: 8px 14px !important;
-    font-size: 0.82rem !important;
-    flex: 1 1 auto !important;
-    justify-content: center !important;
+  .page-title-bar .btn-export-group,
+  .page-title-bar .btn-group {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+
+  .page-title-bar .btn-export-main,
+  .page-title-bar button.vol-btn,
+  .page-title-bar a.vol-btn,
+  .page-title-bar .btn-sys-primary,
+  .page-title-bar .btn-sys-secondary,
+  .page-title-bar .btn,
+  .page-title-bar button:not(.btn-icon) {
+    width: 100% !important;
     text-align: center !important;
+    justify-content: center !important;
+    display: inline-flex !important;
     box-sizing: border-box !important;
+  }
+
+  .export-dropdown-menu {
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: calc(100vw - 28px) !important;
+  }
+}
+
+/* 4. Filter Toolbars & Search Bars Responsive */
+@media (max-width: 640px) {
+  .filter-toolbar-wrap,
+  .att-toolbar,
+  .vol-toolbar,
+  .att-toolbar-filters {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .filter-toolbar-wrap input,
+  .filter-toolbar-wrap select,
+  .att-toolbar input,
+  .att-toolbar select,
+  .vol-toolbar input,
+  .vol-toolbar select,
+  .att-toolbar-filters select,
+  .att-toolbar-filters input,
+  .att-search-wrap {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* 5. KPI & Metric Card Grids Responsive */
+@media (max-width: 580px) {
+  .vol-kpi-grid,
+  .att-kpi-grid,
+  .metrics-grid,
+  .info-row {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .vol-kpi-card,
+  .att-kpi-card,
+  .info-card {
+    padding: 10px 12px !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .vol-kpi-val,
+  .att-kpi-num {
+    font-size: 1.15rem !important;
+  }
+
+  .vol-kpi-lbl,
+  .att-kpi-lbl {
+    font-size: 0.70rem !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .vol-kpi-grid,
+  .att-kpi-grid,
+  .metrics-grid,
+  .info-row {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* 6. Modals on Mobile Viewports */
+@media (max-width: 640px) {
+  .modal-overlay,
+  .vol-modal-backdrop,
+  .modal-backdrop {
+    padding: 8px !important;
+    align-items: flex-end !important;
+  }
+
+  .modal-content,
+  .modal-dialog,
+  .vol-modal,
+  .modal-box {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 90vh !important;
+    max-height: 90dvh !important;
+    margin: 0 auto !important;
+    border-radius: 16px 16px 0 0 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    box-sizing: border-box !important;
+  }
+
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: 14px 16px !important;
+  }
+
+  .modal-footer {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  .modal-footer button,
+  .modal-footer a {
+    width: 100% !important;
+    text-align: center !important;
+    justify-content: center !important;
   }
 }
 

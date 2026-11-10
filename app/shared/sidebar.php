@@ -463,6 +463,9 @@ window.CSRF_TOKEN = "<?= csrf_token() ?>";
   </div><!-- end sidebar-nav -->
 </aside><!-- end sidebar -->
 
+<!-- Global Sidebar Drawer Backdrop Overlay for Mobile -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
 <!-- Notification Panel Overlay & Panel -->
 <div class="notif-overlay" id="notifOverlay"></div>
 <div class="notif-panel" id="notifPanel">

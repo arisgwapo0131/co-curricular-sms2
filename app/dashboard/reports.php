@@ -25,6 +25,7 @@ if ($sess_role === 'club_adviser') {
         $adviser_club_id = (int)$assigned_clubs[0]['id'];
         $adviser_club_name = $assigned_clubs[0]['name'];
         $adviser_club_code = $assigned_clubs[0]['code'];
+        $adviser_club_prog = $conn->real_escape_string($assigned_clubs[0]['program'] ?? '');
     }
 }
 
@@ -34,7 +35,7 @@ if ($adviser_club_id > 0) {
     $stats['total_events']       = (int)$conn->query("SELECT COUNT(*) AS c FROM events WHERE club_id = $adviser_club_id AND deleted_at IS NULL")->fetch_assoc()['c'];
     $stats['approved_events']    = (int)$conn->query("SELECT COUNT(*) AS c FROM events WHERE club_id = $adviser_club_id AND status IN ('Approved','Upcoming','Completed') AND deleted_at IS NULL")->fetch_assoc()['c'];
     $stats['total_members']      = (int)$conn->query("SELECT COUNT(*) AS c FROM club_memberships WHERE club_id = $adviser_club_id AND status='Active'")->fetch_assoc()['c'];
-    $stats['total_attendance']   = (int)$conn->query("SELECT COUNT(*) AS c FROM attendance_logs al JOIN events e ON e.id = al.event_id WHERE e.club_id = $adviser_club_id")->fetch_assoc()['c'];
+    $stats['total_attendance']   = (int)$conn->query("SELECT COUNT(*) AS c FROM attendance_logs al JOIN events e ON e.id = al.event_id LEFT JOIN clubs c ON c.id = e.club_id WHERE (e.club_id = $adviser_club_id" . ($adviser_club_prog ? " OR c.program = '$adviser_club_prog' OR e.target_course = '$adviser_club_prog'" : "") . ")")->fetch_assoc()['c'];
     $stats['total_disbursed']    = (float)$conn->query("SELECT COALESCE(SUM(amount),0) AS s FROM budget_requests WHERE club_id = $adviser_club_id AND status='Disbursed'")->fetch_assoc()['s'];
     $stats['total_achievements'] = (int)$conn->query("SELECT COUNT(*) AS c FROM achievements WHERE club_id = $adviser_club_id AND status='Verified'")->fetch_assoc()['c'];
     $stats['total_registrations']= (int)$conn->query("SELECT COUNT(*) AS c FROM event_registrations er JOIN events e ON e.id = er.event_id WHERE e.club_id = $adviser_club_id")->fetch_assoc()['c'];

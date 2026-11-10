@@ -21,25 +21,63 @@ const hamburgerBtn   = document.getElementById('hamburgerBtn');
 const sidebar        = document.getElementById('sidebar');
 const sidebarOverlay = document.getElementById('sidebarOverlay');
 
-function syncSidebarState() {
+function isMobileViewport() {
+    return window.innerWidth <= 900;
+}
+
+function closeMobileSidebar() {
     if (!sidebar) return;
-    const isCollapsed = sidebar.classList.contains('collapsed');
-    document.body.classList.toggle('sidebar-collapsed', isCollapsed);
+    sidebar.classList.add('collapsed');
+    sidebar.classList.remove('open', 'active');
+    document.body.classList.remove('sidebar-open');
     if (sidebarOverlay) {
-        sidebarOverlay.classList.toggle('active', !isCollapsed && window.innerWidth <= 900);
+        sidebarOverlay.classList.remove('active');
     }
 }
 
-// On mobile (<= 900px) the sidebar is collapsed by default
-if (window.innerWidth <= 900 && sidebar) {
+function openMobileSidebar() {
+    if (!sidebar) return;
+    sidebar.classList.remove('collapsed');
+    sidebar.classList.add('open', 'active');
+    document.body.classList.add('sidebar-open');
+    if (sidebarOverlay) {
+        sidebarOverlay.classList.add('active');
+    }
+}
+
+function syncSidebarState() {
+    if (!sidebar) return;
+    if (isMobileViewport()) {
+        const isOpen = sidebar.classList.contains('open') || (!sidebar.classList.contains('collapsed') && document.body.classList.contains('sidebar-open'));
+        sidebar.classList.toggle('open', isOpen);
+        sidebar.classList.toggle('collapsed', !isOpen);
+        document.body.classList.toggle('sidebar-open', isOpen);
+        if (sidebarOverlay) {
+            sidebarOverlay.classList.toggle('active', isOpen);
+        }
+    } else {
+        const isCollapsed = sidebar.classList.contains('collapsed');
+        sidebar.classList.remove('open', 'active');
+        document.body.classList.remove('sidebar-open');
+        document.body.classList.toggle('sidebar-collapsed', isCollapsed);
+        if (sidebarOverlay) {
+            sidebarOverlay.classList.remove('active');
+        }
+    }
+}
+
+// Initial state check
+if (isMobileViewport() && sidebar) {
     sidebar.classList.add('collapsed');
+    sidebar.classList.remove('open', 'active');
+    document.body.classList.remove('sidebar-open');
 }
 syncSidebarState();
 
-// Window resize handler to maintain clean responsive states
+// Window resize handler
 window.addEventListener('resize', () => {
-    if (window.innerWidth <= 900) {
-        if (sidebar && !sidebar.classList.contains('collapsed')) {
+    if (isMobileViewport()) {
+        if (sidebar && !sidebar.classList.contains('open')) {
             sidebar.classList.add('collapsed');
         }
     }
@@ -48,30 +86,50 @@ window.addEventListener('resize', () => {
 
 hamburgerBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
-    if (sidebar) {
+    if (!sidebar) return;
+    if (isMobileViewport()) {
+        if (sidebar.classList.contains('open') || !sidebar.classList.contains('collapsed')) {
+            closeMobileSidebar();
+        } else {
+            openMobileSidebar();
+        }
+    } else {
         sidebar.classList.toggle('collapsed');
         syncSidebarState();
     }
 });
 
-// Tap the overlay to close sidebar on mobile
+// Tap overlay to close
 if (sidebarOverlay) {
     sidebarOverlay.addEventListener('click', () => {
-        sidebar.classList.add('collapsed');
-        syncSidebarState();
+        closeMobileSidebar();
     });
 }
 
-// Prevent sidebar clicks from bubbling up to document
+// Press ESC to close drawer
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isMobileViewport() && sidebar?.classList.contains('open')) {
+        closeMobileSidebar();
+    }
+});
+
+// Prevent clicks inside sidebar from closing it unless clicking a real navigation link
 if (sidebar) {
-    sidebar.addEventListener('click', (e) => e.stopPropagation());
+    sidebar.addEventListener('click', (e) => {
+        const link = e.target.closest('a');
+        if (link && link.getAttribute('href') && link.getAttribute('href') !== '#' && !link.classList.contains('dropdown-trigger')) {
+            if (isMobileViewport()) {
+                closeMobileSidebar();
+            }
+        }
+        e.stopPropagation();
+    });
 }
 
-// Close sidebar when clicking anywhere in main content on mobile overlay mode
+// Close when clicking main content on mobile if open
 document.addEventListener('click', () => {
-    if (window.innerWidth <= 900 && sidebar && !sidebar.classList.contains('collapsed')) {
-        sidebar.classList.add('collapsed');
-        syncSidebarState();
+    if (isMobileViewport() && sidebar?.classList.contains('open')) {
+        closeMobileSidebar();
     }
 });
 
