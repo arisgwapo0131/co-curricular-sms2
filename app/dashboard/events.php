@@ -5105,11 +5105,11 @@ function viewEvent(ev) {
 // EVENT QR CODE VIEWER, DOWNLOAD & POSTER PRINT
 // ────────────────────────────────────────────────────────────
 let CURRENT_QR_EVENT = null;
+let CURRENT_QR_DATA_URL = '';
 
 function openEventQrModal(ev) {
   CURRENT_QR_EVENT = ev;
   const qrCodeStr = `BCP-EVENT-${ev.id}`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(qrCodeStr)}`;
   
   const titleEl = document.getElementById('eventQrTitle');
   const badgeEl = document.getElementById('eventQrClubBadge');
@@ -5129,9 +5129,45 @@ function openEventQrModal(ev) {
     `;
   }
   
-  if (imgEl) imgEl.src = qrUrl;
   if (strEl) strEl.textContent = qrCodeStr;
   if (liveLnk) liveLnk.href = `tracking_qr_generator.php?event_id=${ev.id}`;
+  
+  // Render local QR data URL via QRCode
+  CURRENT_QR_DATA_URL = '';
+  if (window.QRCode) {
+    try {
+      const tempDiv = document.createElement('div');
+      tempDiv.style.display = 'none';
+      document.body.appendChild(tempDiv);
+      new QRCode(tempDiv, {
+        text: qrCodeStr,
+        width: 320,
+        height: 320,
+        colorDark: "#0f172a",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+      });
+      setTimeout(() => {
+        const canvas = tempDiv.querySelector('canvas');
+        if (canvas && typeof canvas.toDataURL === 'function') {
+          CURRENT_QR_DATA_URL = canvas.toDataURL('image/png');
+        } else {
+          const tempImg = tempDiv.querySelector('img');
+          if (tempImg && tempImg.src) CURRENT_QR_DATA_URL = tempImg.src;
+        }
+        tempDiv.remove();
+        if (CURRENT_QR_DATA_URL && imgEl) {
+          imgEl.src = CURRENT_QR_DATA_URL;
+        } else if (imgEl) {
+          imgEl.src = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(qrCodeStr)}`;
+        }
+      }, 35);
+    } catch(e) {
+      if (imgEl) imgEl.src = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(qrCodeStr)}`;
+    }
+  } else if (imgEl) {
+    imgEl.src = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(qrCodeStr)}`;
+  }
   
   openModal('eventQrModal');
 }
@@ -5139,22 +5175,53 @@ function openEventQrModal(ev) {
 function downloadEventQrPng() {
   if (!CURRENT_QR_EVENT) return;
   const qrCodeStr = `BCP-EVENT-${CURRENT_QR_EVENT.id}`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(qrCodeStr)}`;
-  
-  const a = document.createElement('a');
-  a.href = qrUrl;
-  a.target = '_blank';
-  a.download = `BCP-EVENT-${CURRENT_QR_EVENT.id}-QR.png`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  let src = CURRENT_QR_DATA_URL;
+  if (!src) {
+    const imgEl = document.getElementById('eventQrImg');
+    if (imgEl && imgEl.src && imgEl.src.startsWith('data:')) {
+      src = imgEl.src;
+    }
+  }
+
+  if (src && src.startsWith('data:')) {
+    const a = document.createElement('a');
+    a.href = src;
+    a.download = `BCP-EVENT-${CURRENT_QR_EVENT.id}-QR.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } else {
+    // If fallback external URL, fetch blob to ensure genuine local download
+    fetch(`https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(qrCodeStr)}`)
+      .then(res => res.blob())
+      .then(blob => {
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = `BCP-EVENT-${CURRENT_QR_EVENT.id}-QR.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+      })
+      .catch(() => {
+        window.open(`https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(qrCodeStr)}`, '_blank');
+      });
+  }
 }
 
 function printEventQrPoster() {
   if (!CURRENT_QR_EVENT) return;
   const ev = CURRENT_QR_EVENT;
   const qrCodeStr = `BCP-EVENT-${ev.id}`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(qrCodeStr)}`;
+  let qrImgSrc = CURRENT_QR_DATA_URL;
+  if (!qrImgSrc) {
+    const imgEl = document.getElementById('eventQrImg');
+    if (imgEl && imgEl.src) qrImgSrc = imgEl.src;
+  }
+  if (!qrImgSrc) {
+    qrImgSrc = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(qrCodeStr)}`;
+  }
   const formattedDate = ev.event_date ? new Date(ev.event_date.replace(' ', 'T')).toLocaleString('en-PH', { dateStyle: 'full', timeStyle: 'short' }) : '';
 
   const printWin = window.open('', '_blank', 'width=800,height=950');
@@ -5270,11 +5337,7 @@ function printEventQrPoster() {
         </div>
 
         <div class="qr-wrap">
-          <img src="${qrUrl}" alt="Event QR Code" />
-        </div>
-
-        <div>
-          <div class="payload">${qrCodeStr}</div>
+          <img src="${qrImgSrc}" alt="Event QR Code" />
         </div>
 
         <div class="instructions">

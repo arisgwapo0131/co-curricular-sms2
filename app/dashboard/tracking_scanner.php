@@ -12,10 +12,6 @@ require_auth();
 $sess_first   = htmlspecialchars($_SESSION['first_name'] ?? '');
 $sess_last    = htmlspecialchars($_SESSION['last_name'] ?? '');
 $sess_role    = $_SESSION['role'] ?? 'student';
-if ($sess_role === 'student') {
-    header('Location: dashboard.php');
-    exit;
-}
 $sess_initial = strtoupper(substr($_SESSION['first_name'] ?? 'U', 0, 1));
 $sess_pic     = $_SESSION['profile_pic'] ?? null;
 $user_id      = (int)($_SESSION['user_id'] ?? 0);
@@ -607,6 +603,7 @@ $target_event_id = (int)($_GET['event_id'] ?? 0);
 
   <script src="../js/dashboard.js"></script>
   <script>
+    const CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;
     let html5QrScanner = null;
     let isScanning = false;
     let isPaused = false;
@@ -746,6 +743,9 @@ $target_event_id = (int)($_GET['event_id'] ?? 0);
       const fd = new FormData();
       fd.append('action', 'log_qr');
       fd.append('qr_data', qrData);
+      if (typeof CSRF_TOKEN !== 'undefined' && CSRF_TOKEN) {
+        fd.append('csrf_token', CSRF_TOKEN);
+      }
       if (targetEventId > 0) {
         fd.append('event_id', targetEventId);
       } else {

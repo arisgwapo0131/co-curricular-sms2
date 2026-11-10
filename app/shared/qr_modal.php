@@ -447,7 +447,7 @@ function renderQrWithData(data) {
         correctLevel: QRCode.CorrectLevel.H
       });
       setTimeout(() => {
-        box.querySelectorAll('canvas').forEach(c => c.remove());
+        box.querySelectorAll('canvas').forEach(c => c.style.display = 'none');
         const images = box.querySelectorAll('img');
         for (let i = 1; i < images.length; i++) images[i].remove();
         if (images[0]) {
@@ -667,7 +667,7 @@ function renderEventQrInModal(eventId) {
         correctLevel: QRCode.CorrectLevel.H
       });
       setTimeout(() => {
-        box.querySelectorAll('canvas').forEach(c => c.remove());
+        box.querySelectorAll('canvas').forEach(c => c.style.display = 'none');
         const images = box.querySelectorAll('img');
         for (let i = 1; i < images.length; i++) images[i].remove();
         if (images[0]) {
@@ -716,7 +716,23 @@ function printModalEventPoster() {
   const evOrg = opt.getAttribute('data-org') || 'Bestlink College';
   const payload = `BCP-EVENT-${evId}`;
 
+  const box = document.getElementById('eventQrCanvasBox');
+  let qrSrc = '';
+  if (box) {
+    const canvas = box.querySelector('canvas');
+    if (canvas && typeof canvas.toDataURL === 'function') qrSrc = canvas.toDataURL('image/png');
+    else {
+      const img = box.querySelector('img');
+      if (img && img.src) qrSrc = img.src;
+    }
+  }
+  if (!qrSrc) qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(payload)}&margin=8&color=0f172a&bgcolor=ffffff`;
+
   const w = window.open('', '_blank');
+  if (!w) {
+    alert('Pop-up blocked. Please allow popups to print poster.');
+    return;
+  }
   w.document.write(`
     <!DOCTYPE html>
     <html>
@@ -728,11 +744,11 @@ function printModalEventPoster() {
         h1 { font-size: 1.8rem; margin: 0 0 10px 0; color: #0f2a73; }
         p { font-size: 1.05rem; color: #475569; margin: 6px 0; }
         #qrcode { display: flex; justify-content: center; margin: 30px 0; }
+        #qrcode img { width: 240px; height: 240px; display: block; border-radius: 12px; }
         .instructions { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; padding: 15px; border-radius: 12px; font-weight: 600; font-size: 0.95rem; }
         .btn-print { background: #2563eb; color: white; border: none; padding: 12px 28px; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; margin-top: 20px; }
         @media print { .btn-print { display: none; } }
       </style>
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
     </head>
     <body>
       <div class="poster">
@@ -740,7 +756,7 @@ function printModalEventPoster() {
         <h1>${evTitle}</h1>
         <p><strong>Host:</strong> ${evOrg}</p>
         <p><strong>Date:</strong> ${evDate} | <strong>Venue:</strong> ${evVenue}</p>
-        <div id="qrcode"></div>
+        <div id="qrcode"><img src="${qrSrc}" alt="Event QR Code" /></div>
         <div class="instructions">
           📢 <strong>Students:</strong> Scan this QR Code using your BCP Mobile App / Portal Scanner to record your attendance instantly!
         </div>
@@ -748,13 +764,7 @@ function printModalEventPoster() {
       </div>
       <script>
         window.onload = function() {
-          new QRCode(document.getElementById('qrcode'), {
-            text: "${payload}",
-            width: 240,
-            height: 240,
-            colorDark: "#0f172a",
-            colorLight: "#ffffff"
-          });
+          setTimeout(function() { window.print(); }, 400);
         };
       <\/script>
     </body>
@@ -810,7 +820,23 @@ function downloadQR() {
 
 function printStudentBadge() {
   const d = activeQrData;
+  const box = document.getElementById('myQrCanvasBox');
+  let qrSrc = '';
+  if (box) {
+    const canvas = box.querySelector('canvas');
+    if (canvas && typeof canvas.toDataURL === 'function') qrSrc = canvas.toDataURL('image/png');
+    else {
+      const img = box.querySelector('img');
+      if (img && img.src) qrSrc = img.src;
+    }
+  }
+  if (!qrSrc) qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(d.payload)}&margin=8&color=0f172a&bgcolor=ffffff`;
+
   const w = window.open('', '_blank');
+  if (!w) {
+    alert('Pop-up blocked. Please allow popups to print your badge.');
+    return;
+  }
   w.document.write(`
     <!DOCTYPE html>
     <html>
@@ -824,12 +850,12 @@ function printStudentBadge() {
         .student-num { font-size: 0.95rem; font-weight: 700; color: #2563eb; margin-bottom: 6px; }
         .course-info { font-size: 0.85rem; color: #475569; margin: 4px 0 16px 0; line-height: 1.4; }
         #qrcode { display: flex; justify-content: center; margin: 16px 0; }
+        #qrcode img { width: 200px; height: 200px; display: block; border-radius: 8px; }
         .payload-tag { font-family: monospace; font-size: 0.85rem; background: #f1f5f9; padding: 4px 10px; border-radius: 6px; color: #334155; font-weight: 700; display: inline-block; margin-top: 4px; }
         .instructions { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; padding: 10px; border-radius: 10px; font-weight: 600; font-size: 0.8rem; margin-top: 16px; }
         .btn-print { background: #2563eb; color: white; border: none; padding: 10px 24px; border-radius: 8px; font-weight: bold; font-size: 0.95rem; cursor: pointer; margin-top: 18px; }
         @media print { .btn-print { display: none; } }
       </style>
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
     </head>
     <body>
       <div class="badge-card">
@@ -837,22 +863,14 @@ function printStudentBadge() {
         <h2>${d.fullName}</h2>
         ${d.studentNumber ? `<div class="student-num">Student ID: ${d.studentNumber}</div>` : ''}
         <div class="course-info">${d.course || ''} ${d.yearSec || ''}</div>
-        <div id="qrcode"></div>
+        <div id="qrcode"><img src="${qrSrc}" alt="Badge QR Code" /></div>
         <div class="payload-tag">${d.payload}</div>
         <div class="instructions">Official Attendance &amp; Activity Badge</div>
         <button class="btn-print" onclick="window.print()">🖨️ Print Badge</button>
       </div>
       <script>
         window.onload = function() {
-          if (typeof QRCode !== 'undefined') {
-            new QRCode(document.getElementById('qrcode'), {
-              text: "${d.payload}",
-              width: 200,
-              height: 200,
-              colorDark: "#0f172a",
-              colorLight: "#ffffff"
-            });
-          }
+          setTimeout(function() { window.print(); }, 400);
         };
       <\/script>
     </body>
@@ -1251,6 +1269,7 @@ function printStudentBadge() {
     fd.append('action', 'log_qr');
     fd.append('qr_data', qrData);
     fd.append('event_id', eventId);
+    fd.append('csrf_token', <?= json_encode(csrf_token()) ?>);
 
     fetch('<?= $app_root_rel ?>shared/attendance_actions.php', { method: 'POST', body: fd })
       .then(r => r.json())

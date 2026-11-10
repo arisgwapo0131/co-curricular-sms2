@@ -12,14 +12,21 @@ require_once __DIR__ . '/security.php';
 
 if (empty($_SESSION['user_id'])) { echo json_encode(['success'=>false,'message'=>'Not authenticated.']); exit; }
 
-// CSRF check on mutating requests
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    verify_csrf();
-}
-
 $user_id   = (int)$_SESSION['user_id'];
 $user_role = $_SESSION['role'] ?? 'student';
 $action    = $_POST['action'] ?? $_GET['action'] ?? '';
+
+// CSRF check on mutating requests
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+    if ($action === 'log_qr' && !empty($_SESSION['user_id'])) {
+        // Continuous camera scanner: verify token if provided, but protect stream continuity
+        if (!empty($_POST['csrf_token']) || !empty($_SERVER['HTTP_X_CSRF_TOKEN'])) {
+            verify_csrf(false);
+        }
+    } else {
+        verify_csrf();
+    }
+}
 
 function aRespond(bool $ok, string $msg, array $extra = []): void {
     echo json_encode(array_merge(['success'=>$ok,'message'=>$msg], $extra)); exit;

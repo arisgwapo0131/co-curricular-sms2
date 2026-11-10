@@ -719,6 +719,7 @@ if ($selected_event_id > 0) {
 
   <script src="../js/dashboard.js"></script>
   <script>
+    const CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;
     const currentEventId = <?= $selected_event_id ?>;
     let activeSessionId = <?= $active_session_data ? (int)$active_session_data['id'] : 0 ?>;
     let currentToken = "<?= $active_session_data ? htmlspecialchars($active_session_data['current_token']) : '' ?>";
@@ -768,6 +769,7 @@ if ($selected_event_id > 0) {
       fd.append('action', 'refresh_qr_token');
       fd.append('session_id', activeSessionId);
       fd.append('event_id', currentEventId);
+      if (typeof CSRF_TOKEN !== 'undefined' && CSRF_TOKEN) fd.append('csrf_token', CSRF_TOKEN);
 
       fetch('../shared/attendance_actions.php', { method: 'POST', body: fd })
         .then(r => r.json())
@@ -790,6 +792,7 @@ if ($selected_event_id > 0) {
       fd.append('event_id', currentEventId);
       fd.append('late_after_minutes', lateMins);
       fd.append('refresh_seconds', refreshSec);
+      if (typeof CSRF_TOKEN !== 'undefined' && CSRF_TOKEN) fd.append('csrf_token', CSRF_TOKEN);
 
       fetch('../shared/attendance_actions.php', { method: 'POST', body: fd })
         .then(r => r.json())
@@ -830,6 +833,7 @@ if ($selected_event_id > 0) {
       fd.append('action', 'close_qr_session');
       fd.append('session_id', activeSessionId);
       fd.append('event_id', currentEventId);
+      if (typeof CSRF_TOKEN !== 'undefined' && CSRF_TOKEN) fd.append('csrf_token', CSRF_TOKEN);
 
       fetch('../shared/attendance_actions.php', { method: 'POST', body: fd })
         .then(r => r.json())
@@ -871,6 +875,7 @@ if ($selected_event_id > 0) {
       fd.append('user_id', studentId);
       fd.append('status', status);
       fd.append('override_reason', reason);
+      if (typeof CSRF_TOKEN !== 'undefined' && CSRF_TOKEN) fd.append('csrf_token', CSRF_TOKEN);
 
       fetch('../shared/attendance_actions.php', { method: 'POST', body: fd })
         .then(r => r.json())
