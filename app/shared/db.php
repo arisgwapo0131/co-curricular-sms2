@@ -2,6 +2,7 @@
 // ============================================================
 //  DB.PHP — Database Connection & Environment Loader
 // ============================================================
+require_once __DIR__ . '/version.php';
 
 // Bestlink College of the Philippines timezone synchronization
 if (date_default_timezone_get() !== 'Asia/Manila') {
