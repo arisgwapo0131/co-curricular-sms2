@@ -244,8 +244,8 @@ require_once __DIR__ . '/../shared/sidebar.php';
   <div class="footer">eLearning Commons &copy; 2026</div>
 </div>
 
-<script src="../js/dashboard.js"></script>
-<script src="../js/table-pagination.js"></script>
+<script src="../js/dashboard.js?v=<?= @filemtime(__DIR__ . '/../js/dashboard.js') ?: '20261111' ?>"></script>
+<script src="../js/table-pagination.js?v=<?= @filemtime(__DIR__ . '/../js/table-pagination.js') ?: '20261111' ?>"></script>
 <script>
 function filterAuditTable() {
   const q = (document.getElementById('auditSearchInput')?.value || '').toLowerCase().trim();

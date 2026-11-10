@@ -141,6 +141,11 @@ if ($needs_full_install) {
     
     echo "🌱 Seeding system data and inter-club communications...\n";
     seedLiveSystemData($mysqli, $messages, $errors);
+
+    if (file_exists(__DIR__ . '/init_volunteer.php')) {
+        echo "🌱 Initializing volunteer tracking opportunities...\n";
+        require_once __DIR__ . '/init_volunteer.php';
+    }
     
     echo "🏢 Provisioning organization databases...\n";
     $org_res = provision_all_org_databases($mysqli);
@@ -152,6 +157,12 @@ if ($needs_full_install) {
     patchSystemDatabaseSchemas($mysqli, $messages, $errors);
     seedSystemAccountsAndClubs($mysqli, $messages, $errors);
     seedLiveSystemData($mysqli, $messages, $errors);
+
+    if (file_exists(__DIR__ . '/init_volunteer.php')) {
+        echo "🌱 Synchronizing volunteer tracking opportunities...\n";
+        require_once __DIR__ . '/init_volunteer.php';
+    }
+
     $org_res = provision_all_org_databases($mysqli);
 }
 

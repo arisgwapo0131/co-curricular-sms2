@@ -264,20 +264,25 @@ window.CSRF_TOKEN = "<?= csrf_token() ?>";
         <?php endif; ?>
       <?php endif; ?>
 
-      <!-- Volunteer Hours (Students must be approved organization member) -->
+      <!-- Volunteer Hours -->
       <?php
-        $show_volunteer = false;
-        if ($user_role === 'student') {
-            $show_volunteer = is_student_organization_member(null, (int)($_SESSION['user_id'] ?? 0));
-        } elseif (in_array($user_role, ['club_adviser', 'ssc', 'admin', 'super_admin', 'staff'])) {
-            $show_volunteer = true;
-        }
+        $show_volunteer = in_array($user_role, ['student', 'club_adviser', 'ssc', 'admin', 'super_admin', 'staff']);
       ?>
       <?php if ($show_volunteer): ?>
         <div class="nav-group">
           <a href="<?= $APP_ROOT ?>dashboard/volunteer.php" class="sidebar-item <?= ($ACTIVE_NAV==='volunteer')?'active':'' ?>">
             <i class="fa-solid fa-hand-holding-heart"></i>
             <span>Volunteer Hour Tracking</span>
+          </a>
+        </div>
+      <?php endif; ?>
+
+      <!-- Student Attendance Records -->
+      <?php if ($user_role === 'student'): ?>
+        <div class="nav-group">
+          <a href="<?= $APP_ROOT ?>dashboard/tracking_history.php" class="sidebar-item <?= ($ACTIVE_NAV==='attendance'||$ACTIVE_NAV==='tracking')?'active':'' ?>">
+            <i class="fa-solid fa-clipboard-user"></i>
+            <span>My Attendance Records</span>
           </a>
         </div>
       <?php endif; ?>

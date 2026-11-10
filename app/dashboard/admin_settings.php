@@ -852,7 +852,7 @@ require_once __DIR__ . '/../shared/sidebar.php';
 <?php require_once __DIR__ . '/../shared/qr_modal.php'; ?>
 
 <div id="toast" class="toast-notification" style="display:none;"></div>
-<script src="../js/dashboard.js"></script>
+<script src="../js/dashboard.js?v=<?= @filemtime(__DIR__ . '/../js/dashboard.js') ?: '20261111' ?>"></script>
 <script>
 // Secret Visibility Toggle (Operates smoothly on user typing)
 let isSecretVisible = false;

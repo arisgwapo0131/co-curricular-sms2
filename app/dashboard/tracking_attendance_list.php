@@ -1543,8 +1543,8 @@ if ($admin_logs_res) {
     </div>
   </div>
 
-  <script src="../js/dashboard.js"></script>
-  <script src="../js/table-pagination.js"></script>
+  <script src="../js/dashboard.js?v=<?= @filemtime(__DIR__ . '/../js/dashboard.js') ?: '20261111' ?>"></script>
+  <script src="../js/table-pagination.js?v=<?= @filemtime(__DIR__ . '/../js/table-pagination.js') ?: '20261111' ?>"></script>
   <script>
     // Global variable for current event roster
     window.currentLoadedAttendees = [];

@@ -498,16 +498,24 @@ if ($db_connected && $conn && !$conn->connect_error) {
         $conn->query("CREATE DATABASE IF NOT EXISTS `" . $db . "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
         $conn->select_db($db);
     } else {
-        // Auto-initialize fresh database per-host/db OR if 'users' table is missing
+        // Auto-initialize fresh database per-host/db OR if 'users' table or critical tables are missing
         $migration_flag_file = __DIR__ . '/.migrated';
-        $expected_mig_sig = md5($host . ':' . $port . '/' . $db . '_v2');
+        $expected_mig_sig = md5($host . ':' . $port . '/' . $db . '_v3');
         $current_mig_sig = file_exists($migration_flag_file) ? trim((string)@file_get_contents($migration_flag_file)) : '';
-        $users_table_missing = false;
-        $tblChk = @$conn->query("SHOW TABLES LIKE 'users'");
-        if (!$tblChk || $tblChk->num_rows === 0) {
-            $users_table_missing = true;
+        $needs_migration = ($current_mig_sig !== $expected_mig_sig);
+
+        if (!$needs_migration) {
+            $critical_tables = ['users', 'qr_sessions', 'attendance_scan_attempts', 'volunteer_logs', 'workflow_history'];
+            foreach ($critical_tables as $ct) {
+                $cChk = @$conn->query("SHOW TABLES LIKE '$ct'");
+                if (!$cChk || $cChk->num_rows === 0) {
+                    $needs_migration = true;
+                    break;
+                }
+            }
         }
-        if ($current_mig_sig !== $expected_mig_sig || $users_table_missing) {
+
+        if ($needs_migration) {
             $migrator_path = __DIR__ . '/auto_migrator.php';
             if (file_exists($migrator_path)) {
                 try {

@@ -1076,8 +1076,8 @@ require_once __DIR__ . '/../shared/sidebar.php';
   </div>
 </div>
 
-<script src="../js/dashboard.js"></script>
-<script src="../js/table-pagination.js"></script>
+<script src="../js/dashboard.js?v=<?= @filemtime(__DIR__ . '/../js/dashboard.js') ?: '20261111' ?>"></script>
+<script src="../js/table-pagination.js?v=<?= @filemtime(__DIR__ . '/../js/table-pagination.js') ?: '20261111' ?>"></script>
 <script>
 const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 

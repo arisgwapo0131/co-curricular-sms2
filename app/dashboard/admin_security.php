@@ -958,7 +958,7 @@ require_once __DIR__ . '/../shared/sidebar.php';
 <?php require_once __DIR__ . '/../shared/qr_modal.php'; ?>
 
 <div id="toast" class="toast-notification" style="display:none;"></div>
-<script src="../js/dashboard.js"></script>
+<script src="../js/dashboard.js?v=<?= @filemtime(__DIR__ . '/../js/dashboard.js') ?: '20261111' ?>"></script>
 <script>
 let currentPage = 1;
 let pageSize = 25;

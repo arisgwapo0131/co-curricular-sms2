@@ -2547,6 +2547,6 @@ function closeModal(id) {
   }
 }
 </script>
-<script src="../js/dashboard.js"></script>
+<script src="../js/dashboard.js?v=<?= @filemtime(__DIR__ . '/../js/dashboard.js') ?: '20261111' ?>"></script>
 </body>
 </html>

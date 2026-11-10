@@ -2997,7 +2997,7 @@ $current_page_title = $page_titles[$sess_role] ?? 'Performance Reports & Analyti
 <?php require_once __DIR__ . '/../shared/qr_modal.php'; ?>
 
 <div id="toast" class="toast-notification" style="display:none;"></div>
-<script src="../js/dashboard.js"></script>
+<script src="../js/dashboard.js?v=<?= @filemtime(__DIR__ . '/../js/dashboard.js') ?: '20261111' ?>"></script>
 <script>
 let selectedReportType = '';
 let currentReportData = null;

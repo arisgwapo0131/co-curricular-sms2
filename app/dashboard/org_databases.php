@@ -218,8 +218,8 @@ $ACTIVE_NAV = 'org_databases';
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="csrf-token" content="<?= $csrf_token ?>">
   <title>Organization Database Hub &bull; BCP Co-Curricular</title>
-  <link rel="stylesheet" href="../css/dashboard.css">
-  <link rel="stylesheet" href="../css/page-loader.css">
+  <link rel="stylesheet" href="../css/dashboard.css?v=<?= @filemtime(__DIR__ . '/../css/dashboard.css') ?: '20261111' ?>">
+  <link rel="stylesheet" href="../css/page-loader.css?v=<?= @filemtime(__DIR__ . '/../css/page-loader.css') ?: '20261111' ?>">
   <meta name="loader-logo" content="../images/BCP_LOGO.png"/>
   <script src="../js/page-loader.js"></script>
   <link rel="stylesheet" href="../vendor/fontawesome/css/all.min.css"/>
@@ -1102,5 +1102,6 @@ $ACTIVE_NAV = 'org_databases';
     }
   });
 </script>
+<script src="../js/dashboard.js?v=<?= @filemtime(__DIR__ . '/../js/dashboard.js') ?: '20261111' ?>"></script>
 </body>
 </html>

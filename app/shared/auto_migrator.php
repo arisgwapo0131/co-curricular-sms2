@@ -96,6 +96,15 @@ function auto_initialize_database(mysqli $conn): bool {
             }
         }
 
+        // Always ensure database schemas, new tables, and multi-stage workflow columns are fully synchronized
+        try {
+            if (function_exists('patchSystemDatabaseSchemas')) {
+                patchSystemDatabaseSchemas($conn, $messages, $errors);
+            }
+        } catch (Throwable $e) {
+            error_log("Patch system schemas warning: " . $e->getMessage());
+        }
+
         // Always ensure system accounts & clubs from SYSTEM_ACCOUNTS.md are active and passwords synchronized
         try {
             if (function_exists('seedSystemAccountsAndClubs')) {
@@ -103,6 +112,15 @@ function auto_initialize_database(mysqli $conn): bool {
             }
         } catch (Throwable $e) {
             error_log("Seed accounts warning: " . $e->getMessage());
+        }
+
+        // Ensure volunteer tables and opportunities exist and are initialized
+        try {
+            if (file_exists(__DIR__ . '/init_volunteer.php')) {
+                require_once __DIR__ . '/init_volunteer.php';
+            }
+        } catch (Throwable $e) {
+            error_log("Init volunteer warning: " . $e->getMessage());
         }
 
         $uCount = @$conn->query("SELECT COUNT(*) FROM users");

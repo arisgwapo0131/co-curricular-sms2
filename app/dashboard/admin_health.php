@@ -209,7 +209,7 @@ require_once __DIR__ . '/../shared/sidebar.php';
   <div class="footer">eLearning Commons &copy; 2026</div>
 </div>
 
-<script src="../js/dashboard.js"></script>
+<script src="../js/dashboard.js?v=<?= @filemtime(__DIR__ . '/../js/dashboard.js') ?: '20261111' ?>"></script>
 <script>
 const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 

@@ -717,7 +717,7 @@ if ($selected_event_id > 0) {
     </div>
   </div>
 
-  <script src="../js/dashboard.js"></script>
+  <script src="../js/dashboard.js?v=<?= @filemtime(__DIR__ . '/../js/dashboard.js') ?: '20261111' ?>"></script>
   <script>
     const CSRF_TOKEN = <?= json_encode(csrf_token()) ?>;
     const currentEventId = <?= $selected_event_id ?>;
