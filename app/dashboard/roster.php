@@ -625,11 +625,6 @@ if (!empty($selected_club_code) || !empty($selected_club_id)) {
             <?= ($sess_role === 'student') ? 'Official Co-Curricular Club Memberships &bull; Application Status &bull; Active Roster' : 'Membership Verification Queue &bull; Student Roster Oversight &bull; Roster Management' ?>
           </div>
         </div>
-        <div style="display:flex; gap:10px; align-items:center;">
-          <a href="club_directory.php" class="card-btn" style="text-decoration:none; height:38px; padding:0 16px; border-radius:10px; font-weight:700; background:#2563eb; color:#fff; display:inline-flex; align-items:center; gap:8px; font-size:0.84rem; cursor:pointer; border:none; box-shadow:0 2px 6px rgba(37,99,235,0.25);">
-            <i class="fa-solid fa-sitemap"></i> Explore Organizations
-          </a>
-        </div>
       </div>
 
       <div class="content-body">

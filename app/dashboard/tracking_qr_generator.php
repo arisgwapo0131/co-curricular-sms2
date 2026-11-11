@@ -365,44 +365,18 @@ if ($selected_event_id > 0) {
     <!-- Content -->
     <div class="content">
 
-      <!-- Event Header with Live Badge -->
-      <div class="page-title-bar" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:14px; margin-bottom:18px;">
-        <div style="flex:1; min-width:280px;">
-          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-            <h2 class="page-title" style="margin:0;" id="eventHeaderTitle">
+      <!-- Module Title Bar (System Standard Layout) -->
+      <div class="page-title-bar" style="margin-bottom:16px; padding:12px 20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div>
+            <h2 class="page-title" style="margin:0; font-size:1.25rem; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
               <i class="fa-solid fa-qrcode" style="color:#2563eb;"></i>
-              <?= $current_event ? htmlspecialchars($current_event['title']) : 'No Active Events' ?>
+              Live QR Code Generator
             </h2>
-            <span class="live-status-pill <?= $has_active_session ? 'live-pill-active' : 'live-pill-closed' ?>" id="liveStatusBadge">
-              <?= $has_active_session ? 'LIVE' : 'CLOSED' ?>
+            <span class="page-subtitle" style="font-size:0.75rem; color:#64748b; margin-top:2px; display:inline-block;">
+              Dynamic Attendance QR Terminal &bull; Session Control &bull; Real-Time Check-In Verification
             </span>
           </div>
-          <div style="font-size:0.85rem; color:#64748b; margin-top:6px;" id="eventHeaderMeta">
-            <?php if ($current_event): ?>
-              <?= date('F j, Y', strtotime($current_event['event_date'])) ?> &bull; <?= date('g:i A', strtotime($current_event['event_date'])) ?> &bull; <i class="fa-solid fa-location-dot" style="color:#ef4444;"></i> <?= htmlspecialchars($current_event['venue'] ?? 'Campus Venue') ?> &bull; <?= htmlspecialchars($current_event['club_name'] ?? 'College') ?>
-            <?php else: ?>
-              Please select or create an approved event to operate attendance sessions.
-            <?php endif; ?>
-          </div>
-        </div>
-
-        <!-- Event Selector -->
-        <div style="min-width:240px;">
-          <select id="eventSwitchSelect" onchange="switchEvent(this.value)" style="height:40px; border:1px solid #cbd5e1; border-radius:10px; padding:0 14px; font-size:0.85rem; font-weight:700; color:#0f172a; background:#f8fafc; outline:none; width:100%;">
-            <?php if (empty($grouped_active_events)): ?>
-              <option value="">No Active Events Found</option>
-            <?php else: ?>
-              <?php foreach ($grouped_active_events as $progGroup => $groupEvs): ?>
-                <optgroup label="<?= htmlspecialchars($progGroup) ?>">
-                  <?php foreach ($groupEvs as $ev): ?>
-                    <option value="<?= $ev['id'] ?>" <?= ((int)$ev['id'] === $selected_event_id) ? 'selected' : '' ?>>
-                      <?= htmlspecialchars($ev['title']) ?> (<?= date('M d, Y', strtotime($ev['event_date'])) ?>)
-                    </option>
-                  <?php endforeach; ?>
-                </optgroup>
-              <?php endforeach; ?>
-            <?php endif; ?>
-          </select>
         </div>
       </div>
 
@@ -451,29 +425,71 @@ if ($selected_event_id > 0) {
           </div>
         </div>
 
-        <!-- 2. Action Toolbar -->
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:20px;">
-          <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <button type="button" class="btn-sys-primary" onclick="openGenerateModal()" style="display:inline-flex; align-items:center; gap:8px; padding:9px 18px; border-radius:10px; font-weight:700; cursor:pointer;">
-              <i class="fa-solid fa-qrcode"></i> <?= $has_active_session ? 'Configure Session' : 'Open Attendance / Generate QR' ?>
-            </button>
-            <button type="button" class="btn-sys-secondary" onclick="toggleFullScreenQR()" style="display:inline-flex; align-items:center; gap:8px; padding:9px 16px; border-radius:10px; font-weight:700; cursor:pointer;">
-              <i class="fa-solid fa-expand"></i> Full Screen
-            </button>
-            <button type="button" class="btn-sys-secondary" onclick="manualRefreshToken()" style="display:inline-flex; align-items:center; gap:8px; padding:9px 16px; border-radius:10px; font-weight:700; cursor:pointer;">
-              <i class="fa-solid fa-rotate"></i> Refresh QR
-            </button>
-            <?php if ($has_active_session): ?>
-              <button type="button" class="btn-sys-danger" id="btnCloseSessionBtn" onclick="closeCurrentSession()" style="display:inline-flex; align-items:center; gap:8px; padding:9px 16px; border-radius:10px; font-weight:700; cursor:pointer;">
-                <i class="fa-solid fa-power-off"></i> Close Attendance
-              </button>
-            <?php endif; ?>
+        <!-- 2. Active Event Context & Action Toolbar Card -->
+        <div class="card" style="padding:16px 20px; border-radius:14px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.04); margin-bottom:20px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px; padding-bottom:14px; border-bottom:1px solid #f1f5f9; margin-bottom:14px;">
+            <div style="flex:1; min-width:260px;">
+              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <h3 style="margin:0; font-size:1.05rem; font-weight:800; color:#0f172a;" id="eventHeaderTitle">
+                  <?= $current_event ? htmlspecialchars($current_event['title']) : 'No Active Events' ?>
+                </h3>
+                <span class="live-status-pill <?= $has_active_session ? 'live-pill-active' : 'live-pill-closed' ?>" id="liveStatusBadge" style="font-size:0.72rem; padding:3px 10px;">
+                  <?= $has_active_session ? 'LIVE' : 'CLOSED' ?>
+                </span>
+              </div>
+              <div style="font-size:0.8rem; color:#64748b; margin-top:4px;" id="eventHeaderMeta">
+                <?php if ($current_event): ?>
+                  <?= date('F j, Y', strtotime($current_event['event_date'])) ?> &bull; <?= date('g:i A', strtotime($current_event['event_date'])) ?> &bull; <i class="fa-solid fa-location-dot" style="color:#ef4444;"></i> <?= htmlspecialchars($current_event['venue'] ?? 'Campus Venue') ?> &bull; <?= htmlspecialchars($current_event['club_name'] ?? 'College') ?>
+                <?php else: ?>
+                  Please select or create an approved event to operate attendance sessions.
+                <?php endif; ?>
+              </div>
+            </div>
+
+            <!-- Event Selector -->
+            <div style="min-width:260px; max-width:420px; flex:0 1 360px;">
+              <label for="eventSwitchSelect" style="display:block; font-size:0.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">Select Active Event</label>
+              <select id="eventSwitchSelect" onchange="switchEvent(this.value)" style="height:38px; border:1px solid #cbd5e1; border-radius:8px; padding:0 12px; font-size:0.82rem; font-weight:600; color:#0f172a; background:#f8fafc; outline:none; width:100%; cursor:pointer;">
+                <?php if (empty($grouped_active_events)): ?>
+                  <option value="">No Active Events Found</option>
+                <?php else: ?>
+                  <?php foreach ($grouped_active_events as $progGroup => $groupEvs): ?>
+                    <optgroup label="<?= htmlspecialchars($progGroup) ?>">
+                      <?php foreach ($groupEvs as $ev): ?>
+                        <option value="<?= $ev['id'] ?>" <?= ((int)$ev['id'] === $selected_event_id) ? 'selected' : '' ?>>
+                          <?= htmlspecialchars($ev['title']) ?> (<?= date('M d, Y', strtotime($ev['event_date'])) ?>)
+                        </option>
+                      <?php endforeach; ?>
+                    </optgroup>
+                  <?php endforeach; ?>
+                <?php endif; ?>
+              </select>
+            </div>
           </div>
 
-          <div>
-            <button type="button" onclick="openManualAttendanceModal()" style="display:inline-flex; align-items:center; gap:8px; padding:9px 16px; border-radius:10px; font-weight:700; background:#f8fafc; border:1.5px solid #cbd5e1; color:#0f172a; cursor:pointer;">
-              <i class="fa-solid fa-user-plus" style="color:#2563eb;"></i> + Manual Attendance
-            </button>
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button type="button" class="btn-sys-primary" onclick="openGenerateModal()" style="display:inline-flex; align-items:center; gap:7px; height:36px; padding:0 16px; border-radius:8px; font-size:0.82rem; font-weight:700; cursor:pointer;">
+                <i class="fa-solid fa-qrcode"></i> <?= $has_active_session ? 'Configure Session' : 'Open Attendance / Generate QR' ?>
+              </button>
+              <button type="button" class="btn-sys-secondary" onclick="toggleFullScreenQR()" style="display:inline-flex; align-items:center; gap:7px; height:36px; padding:0 14px; border-radius:8px; font-size:0.82rem; font-weight:700; cursor:pointer;">
+                <i class="fa-solid fa-expand"></i> Full Screen
+              </button>
+              <button type="button" class="btn-sys-secondary" onclick="manualRefreshToken()" style="display:inline-flex; align-items:center; gap:7px; height:36px; padding:0 14px; border-radius:8px; font-size:0.82rem; font-weight:700; cursor:pointer;">
+                <i class="fa-solid fa-rotate"></i> Refresh QR
+              </button>
+              <?php if ($has_active_session): ?>
+                <button type="button" class="btn-sys-danger" id="btnCloseSessionBtn" onclick="closeCurrentSession()" style="display:inline-flex; align-items:center; gap:7px; height:36px; padding:0 14px; border-radius:8px; font-size:0.82rem; font-weight:700; cursor:pointer;">
+                  <i class="fa-solid fa-power-off"></i> Close Attendance
+                </button>
+              <?php endif; ?>
+            </div>
+
+            <div>
+              <button type="button" onclick="openManualAttendanceModal()" style="display:inline-flex; align-items:center; gap:7px; height:36px; padding:0 14px; border-radius:8px; font-size:0.82rem; font-weight:700; background:#f8fafc; border:1.5px solid #cbd5e1; color:#0f172a; cursor:pointer;">
+                <i class="fa-solid fa-user-plus" style="color:#2563eb;"></i> + Manual Attendance
+              </button>
+            </div>
           </div>
         </div>
 

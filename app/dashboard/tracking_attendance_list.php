@@ -689,17 +689,6 @@ if ($admin_logs_res) {
             <?= ($sess_role === 'admin' || $sess_role === 'super_admin') ? 'Master Attendance Audit Ledger &bull; Session Controls &bull; Administrative Overrides' : (($sess_role === 'ssc') ? 'Campus-Wide Attendance Monitoring &bull; Active QR Sessions &bull; Scan Verification' : 'Verified Attendee Logs &bull; Real-time QR Check-in Rosters') ?>
           </div>
         </div>
-
-        <div style="display:flex; gap:10px;">
-          <a href="tracking_qr_generator.php" class="btn-sys-secondary" style="display:inline-flex; align-items:center; gap:8px; padding:9px 16px; border-radius:10px; font-weight:700; text-decoration:none; font-size:0.84rem;">
-            <i class="fa-solid fa-qrcode"></i> QR Operator Screen
-          </a>
-          <?php if (can('attendance.override')): ?>
-            <button type="button" class="btn-sys-primary" onclick="openManualOverrideModal()" style="display:inline-flex; align-items:center; gap:8px; padding:9px 16px; border-radius:10px; font-weight:700; cursor:pointer;">
-              <i class="fa-solid fa-pen-to-square"></i> Manual Override
-            </button>
-          <?php endif; ?>
-        </div>
       </div>
 
       <div class="content-body">
@@ -849,6 +838,18 @@ if ($admin_logs_res) {
             </div>
             <span class="att-tab-pill" style="background:#f0fdf4; color:#16a34a; border-color:#bbf7d0;"><?= count($events) ?></span>
           </a>
+        </div>
+
+        <!-- Quick Action Toolbar (Moved below tabs) -->
+        <div style="display:flex; justify-content:flex-end; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:18px;">
+          <a href="tracking_qr_generator.php" class="btn-sys-secondary" style="display:inline-flex; align-items:center; gap:8px; height:38px; padding:0 16px; border-radius:10px; font-weight:700; text-decoration:none; font-size:0.82rem;">
+            <i class="fa-solid fa-qrcode"></i> QR Operator Screen
+          </a>
+          <?php if (can('attendance.override')): ?>
+            <button type="button" class="btn-sys-primary" onclick="openManualOverrideModal()" style="display:inline-flex; align-items:center; gap:8px; height:38px; padding:0 16px; border-radius:10px; font-weight:700; font-size:0.82rem; cursor:pointer;">
+              <i class="fa-solid fa-pen-to-square"></i> Manual Override
+            </button>
+          <?php endif; ?>
         </div>
 
         <!-- ════════════════════════════════════════════════════════════

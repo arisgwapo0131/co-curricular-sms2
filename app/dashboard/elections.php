@@ -751,13 +751,6 @@ require_once __DIR__ . '/../shared/sidebar.php';
           <?= in_array($sess_role, ['admin', 'super_admin']) ? 'Official Institutional Governance &bull; Election Pool Administration &bull; Security Audit' : (($sess_role === 'ssc') ? 'Supreme Student Council &bull; Executive Election Registry &bull; Democratic Governance' : 'Official Co-Curricular Student Leadership Elections &bull; Secure Voting Portal') ?>
         </div>
       </div>
-      <div style="display:flex; gap:10px; align-items:center;">
-        <?php if (in_array($sess_role, ['ssc', 'admin', 'super_admin'])): ?>
-          <button class="card-btn" onclick="openCreateElectionModal()" style="height:38px; padding:0 18px; border-radius:10px; font-weight:700; background:#2563eb; color:#fff; display:inline-flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer; border:none; box-shadow:0 2px 6px rgba(37,99,235,0.25);">
-            <i class="fa-solid fa-plus-circle"></i> Create Election
-          </button>
-        <?php endif; ?>
-      </div>
     </div>
 
     <div class="content-body">

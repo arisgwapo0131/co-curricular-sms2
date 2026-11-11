@@ -9,13 +9,24 @@ if (!defined('GEMINI_DEFAULT_KEY')) {
     define('GEMINI_DEFAULT_KEY', '');
 }
 if (!defined('GEMINI_MODEL')) {
-    define('GEMINI_MODEL', 'gemini-3.5-flash-lite');
+    define('GEMINI_MODEL', 'gemini-2.5-flash');
 }
 if (!defined('AI_MAX_TOKENS')) {
     define('AI_MAX_TOKENS', 2048);
 }
 if (!defined('AI_TEMPERATURE')) {
     define('AI_TEMPERATURE', 0.7);
+}
+
+/**
+ * Helper to check if a key string is a non-placeholder value
+ */
+function is_configured_api_key_string(string $k): bool {
+    $k = trim($k);
+    if (empty($k)) return false;
+    if (str_contains($k, '••') || preg_match('/^[•\*]+$/u', $k)) return false;
+    if (stripos($k, 'YOUR_GEMINI_API_KEY') !== false || stripos($k, 'PLACEHOLDER') !== false) return false;
+    return true;
 }
 
 /**
@@ -37,8 +48,7 @@ function get_gemini_api_key(?mysqli $conn = null): string {
             $res = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'gemini_api_key' LIMIT 1");
             if ($res && $row = $res->fetch_assoc()) {
                 $k = trim($row['setting_value'] ?? '');
-                // Ensure it is not a masked string or placeholder
-                if (!empty($k) && !str_contains($k, '••') && !preg_match('/^[•\*]+$/u', $k)) {
+                if (is_configured_api_key_string($k)) {
                     $_SESSION['gemini_api_key'] = $k;
                     return $k;
                 }
@@ -49,18 +59,34 @@ function get_gemini_api_key(?mysqli $conn = null): string {
     // 3. Check session cache (validate not placeholder)
     if (!empty($_SESSION['gemini_api_key'])) {
         $sessKey = trim($_SESSION['gemini_api_key']);
-        if (!empty($sessKey) && !str_contains($sessKey, '••') && !preg_match('/^[•\*]+$/u', $sessKey)) {
+        if (is_configured_api_key_string($sessKey)) {
             return $sessKey;
         }
     }
 
-    // 4. Check environment variable
+    // 4. Check environment variable or .env file
     $envKey = getenv('GEMINI_API_KEY') ?: ($_ENV['GEMINI_API_KEY'] ?? '');
-    if (!empty($envKey)) {
-        return trim($envKey);
+    if (!is_configured_api_key_string($envKey)) {
+        $envFile = dirname(__DIR__, 2) . '/.env';
+        if (file_exists($envFile)) {
+            $envContent = @file_get_contents($envFile);
+            if ($envContent && preg_match('/^GEMINI_API_KEY\s*=\s*["\']?([^"\'\r\n]+)["\']?/m', $envContent, $m)) {
+                $envKey = trim($m[1]);
+            }
+        }
+    }
+    if (is_configured_api_key_string($envKey)) {
+        if ($conn instanceof mysqli && @$conn->ping()) {
+            @save_gemini_api_key($envKey, $conn);
+        }
+        return $envKey;
     }
 
-    return defined('GEMINI_DEFAULT_KEY') ? GEMINI_DEFAULT_KEY : '';
+    $defKey = defined('GEMINI_DEFAULT_KEY') ? GEMINI_DEFAULT_KEY : '';
+    if (is_configured_api_key_string($defKey) && $conn instanceof mysqli && @$conn->ping()) {
+        @save_gemini_api_key($defKey, $conn);
+    }
+    return $defKey;
 }
 
 /**

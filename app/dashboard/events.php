@@ -1598,7 +1598,7 @@ require_once __DIR__ . '/../shared/sidebar.php';
 
   <div class="content">
     <div class="page-title-bar" style="margin-bottom:14px; padding:12px 20px;">
-      <!-- Module Title & Primary Action Buttons -->
+      <!-- Module Title -->
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
         <div>
           <h2 class="page-title" style="margin:0; font-size:1.25rem; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
@@ -1612,25 +1612,6 @@ require_once __DIR__ . '/../shared/sidebar.php';
               <?= ($events_view === 'calendar') ? 'Interactive Campus Event Schedule, Holidays &bull; Venue Conflict Manager' : 'Event Proposals &bull; Multi-Tier Endorsement &bull; Administrative Clearance Pipeline' ?>
             <?php endif; ?>
           </span>
-        </div>
-
-        <!-- Global Action Toolbar -->
-        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-          <?php if (can_any(['events.create.own', 'events.create.institutional'])): ?>
-            <button type="button" class="card-btn btn-sm btn-ai-planner" onclick="openModal('aiPlannerModal')" title="Open AI Event Planner &amp; Schedule Conflict Optimizer" aria-label="Open AI Event Planner" style="height:32px; padding:0 12px; font-size:0.8rem; font-weight:700;">
-              <i class="fa-solid fa-wand-magic-sparkles" style="color:#facc15;"></i> AI Event Planner
-            </button>
-          <?php endif; ?>
-
-          <?php if (in_array($sess_role, ['admin', 'super_admin'])): ?>
-            <button type="button" class="card-btn btn-sm" style="background:#16a34a; color:#fff; font-weight:700; height:32px; padding:0 12px; font-size:0.8rem; border-radius:8px; display:inline-flex; align-items:center; gap:6px; border:none; cursor:pointer;" onclick="openCreateEventModal()" title="Create Institutional / Campus Event">
-              <i class="fa-solid fa-calendar-plus"></i> Create Institutional Event
-            </button>
-          <?php elseif (in_array($sess_role, ['club_adviser', 'ssc', 'staff']) || can('events.create.own')): ?>
-            <button type="button" class="card-btn btn-sm" style="background:#16a34a; color:#fff; font-weight:700; height:32px; padding:0 12px; font-size:0.8rem; border-radius:8px; display:inline-flex; align-items:center; gap:6px; border:none; cursor:pointer;" onclick="openCreateEventModal()" title="Propose New Event">
-              <i class="fa-solid fa-calendar-plus"></i> Create Event Proposal
-            </button>
-          <?php endif; ?>
         </div>
       </div>
     </div>
@@ -6830,19 +6811,6 @@ async function generateAIEventPlans() {
 
     let html = '';
 
-    const isGemini = data.engine && data.engine.toLowerCase().includes('gemini');
-    if (!isGemini) {
-      let warnText = 'No Google Gemini API key configured in System Settings. Showing rule-based procedural recommendations.';
-      if (data.google_error && !data.google_error.toLowerCase().includes('no api key')) {
-        warnText = `API Key is active, but Google returned: "${data.google_error}". Showing rule-based procedural recommendations while Google recovers.`;
-      }
-      html += `
-        <div style="margin-bottom:14px; padding:10px 14px; background:#fffbeb; border:1.5px solid #fde68a; border-radius:10px; font-size:0.82rem; color:#92400e; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-          <div><i class="fa-solid fa-triangle-exclamation" style="color:#d97706; margin-right:6px;"></i><strong>Notice:</strong> ${warnText}</div>
-          <a href="../dashboard/admin_settings.php" target="_blank" style="color:#b45309; font-weight:700; text-decoration:underline;">System Settings &rarr;</a>
-        </div>`;
-    }
-
     // Grid of Proposed Plans - 3 Aligned in a Row
     html += '<div class="ai-plans-grid">';
     CURRENT_AI_PLANS.forEach((plan, idx) => {
@@ -6860,7 +6828,6 @@ async function generateAIEventPlans() {
             <div class="ai-plan-meta">
               <span class="ai-meta-tag"><i class="fa-solid fa-calendar-day"></i> ${formattedDate}</span>
               <span class="ai-meta-tag"><i class="fa-solid fa-location-dot"></i> ${plan.recommended_venue || 'Campus Venue'}</span>
-              <span class="ai-meta-tag" style="background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; font-weight:700;"><i class="fa-solid fa-coins" style="color:#059669;"></i> ₱${Number(plan.estimated_budget || 0).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2})} Est. Budget</span>
             </div>
             <div class="ai-plan-desc">${plan.description}</div>
             <div class="ai-conflict-box" title="${plan.accessibility_verdict || 'Schedule Clear'}">
@@ -6925,7 +6892,7 @@ function applyAIEventPlan(planIndex) {
 
   const budgetInput = document.getElementById('createEventBudgetInput');
   if (budgetInput) {
-    budgetInput.value = plan.estimated_budget ? parseFloat(plan.estimated_budget).toFixed(2) : '0.00';
+    budgetInput.value = '0.00';
   }
 
   if (clubSelect && CURRENT_AI_CLUB_ID) {

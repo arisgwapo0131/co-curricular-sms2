@@ -462,6 +462,7 @@ if ($sess_role === 'club_adviser' && $adviser_club) {
       position: absolute;
       top: calc(100% + 6px);
       right: 0;
+      left: auto;
       background: #ffffff;
       min-width: 250px;
       border-radius: 10px;
@@ -470,6 +471,12 @@ if ($sess_role === 'club_adviser' && $adviser_club) {
       z-index: 1050;
       overflow: hidden;
       animation: fadeIn 0.14s ease-out;
+    }
+    @media (max-width: 960px) {
+      .export-dropdown-menu {
+        left: 0;
+        right: auto;
+      }
     }
     .export-dropdown-menu.show {
       display: block;
@@ -1025,14 +1032,14 @@ if ($sess_role === 'club_adviser' && $adviser_club) {
 
   <div class="content">
 
-    <!-- Page Title Bar (Full width flush with topbar) -->
-    <div class="page-title-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+    <!-- Page Title Bar (System Standard Layout) -->
+    <div class="page-title-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px; padding:12px 20px;">
       <div>
-        <h2 class="page-title" style="margin:0; font-size:1.4rem; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:10px;">
+        <h2 class="page-title" style="margin:0; font-size:1.25rem; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
           <i class="fa-solid fa-hand-holding-heart" style="color:#2563eb;"></i>
           <?= $sess_role === 'student' ? 'Event Volunteer Hours &amp; Community Service' : ($sess_role === 'club_adviser' ? htmlspecialchars($adviser_club['code'] ?? 'Org') . ' Volunteer Verifications' : 'Volunteer Hours &amp; Community Service') ?>
         </h2>
-        <div style="font-size:0.8rem; color:#64748b; margin-top:3px;">
+        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">
           <?php if ($sess_role === 'student'): ?>
             Enrolled Program: <strong style="color:#1e293b;"><?= htmlspecialchars($student_course) ?></strong> (<?= htmlspecialchars($student_year) ?>)
             <?php if (!empty($student_member_clubs)): ?>
@@ -1048,56 +1055,6 @@ if ($sess_role === 'club_adviser' && $adviser_club) {
           <?php endif; ?>
         </div>
       </div>
-      <?php if (in_array($sess_role, ['club_adviser', 'ssc', 'admin'])): ?>
-        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-          <!-- Export Report Dropdown Group -->
-          <div class="btn-export-group">
-            <button type="button" class="btn-export-main" onclick="toggleExportMenu('volunteerExportMenu')" title="Download volunteer records in PDF, Excel, or CSV">
-              <i class="fa-solid fa-cloud-arrow-down"></i>
-              <span>Export Volunteers</span>
-              <i class="fa-solid fa-chevron-down" style="font-size:0.65rem; margin-left:3px;"></i>
-            </button>
-            <div id="volunteerExportMenu" class="export-dropdown-menu">
-              <div class="export-menu-header">
-                Volunteer Records Export
-              </div>
-              <button type="button" class="export-menu-item" onclick="exportVolunteerPDF()">
-                <i class="fa-solid fa-file-pdf" style="color:#dc2626; font-size:1.05rem;"></i>
-                <div>
-                  <div class="export-item-title">Download PDF (.pdf)</div>
-                  <div class="export-item-sub">Formal print-ready accreditation report</div>
-                </div>
-              </button>
-              <button type="button" class="export-menu-item" onclick="exportVolunteerExcel()">
-                <i class="fa-solid fa-file-excel" style="color:#16a34a; font-size:1.05rem;"></i>
-                <div>
-                  <div class="export-item-title">Download Excel (.xlsx)</div>
-                  <div class="export-item-sub">Structured spreadsheet format</div>
-                </div>
-              </button>
-              <button type="button" class="export-menu-item" onclick="exportVolunteerCSV()">
-                <i class="fa-solid fa-file-csv" style="color:#2563eb; font-size:1.05rem;"></i>
-                <div>
-                  <div class="export-item-title">Download CSV (.csv)</div>
-                  <div class="export-item-sub">Raw UTF-8 delimited dataset</div>
-                </div>
-              </button>
-              <div class="export-menu-divider"></div>
-              <button type="button" class="export-menu-item" onclick="printVolunteerReport()">
-                <i class="fa-solid fa-print" style="color:#475569; font-size:1.05rem;"></i>
-                <div>
-                  <div class="export-item-title">Print Volunteer Roster</div>
-                  <div class="export-item-sub">Official paper / browser printout</div>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          <button class="vol-btn vol-btn-primary" onclick="openCreateOpportunityModal()">
-            <i class="fa-solid fa-plus-circle"></i> Post Volunteer Role
-          </button>
-        </div>
-      <?php endif; ?>
     </div>
 
     <div class="content-body vol-container">
@@ -1176,7 +1133,7 @@ if ($sess_role === 'club_adviser' && $adviser_club) {
             </div>
           </div>
           <div class="vol-kpi-card">
-            <div class="vol-kpi-icon" style="background:#f5f3ff; color:#7c3aed;"><i class="fa-solid fa-calendar-star"></i></div>
+            <div class="vol-kpi-icon" style="background:#f5f3ff; color:#7c3aed;"><i class="fa-solid fa-calendar-check"></i></div>
             <div>
               <div class="vol-kpi-val"><?= count($opportunities) ?></div>
               <div class="vol-kpi-lbl">Available Role Posts</div>
@@ -1185,18 +1142,71 @@ if ($sess_role === 'club_adviser' && $adviser_club) {
         <?php endif; ?>
       </div>
 
-      <!-- Navigation Tabs (Only for Faculty Advisers and Admin Queue) -->
+      <!-- Navigation Tabs & Action Toolbar (Only for Faculty Advisers and Admin Queue) -->
       <?php if ($sess_role !== 'student'): ?>
-      <div class="vol-nav-tabs">
-        <button class="vol-nav-tab active" id="tabBtnPending" onclick="switchVolTab('pending')">
-          <i class="fa-solid fa-clock-rotate-left"></i> Pending Verifications Queue (<?= count($adviser_pending_queue) ?>)
-        </button>
-        <button class="vol-nav-tab" id="tabBtnOpportunities" onclick="switchVolTab('opportunities')">
-          <i class="fa-solid fa-grip"></i> Event Role Postings (<?= count($opportunities) ?>)
-        </button>
-        <button class="vol-nav-tab" id="tabBtnVerifiedRoster" onclick="switchVolTab('verifiedRoster')">
-          <i class="fa-solid fa-clipboard-check"></i> Verified Volunteers Roster (<?= count($adviser_verified_list) ?>)
-        </button>
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-bottom:2px solid #e2e8f0; margin-bottom:22px;">
+        <div class="vol-nav-tabs" style="width:auto !important; flex:1 1 auto; min-width:0; border-bottom:none !important; margin-bottom:0 !important; padding-bottom:0 !important;">
+          <button class="vol-nav-tab active" id="tabBtnPending" onclick="switchVolTab('pending')">
+            <i class="fa-solid fa-clock-rotate-left"></i> Pending Verifications Queue (<?= count($adviser_pending_queue) ?>)
+          </button>
+          <button class="vol-nav-tab" id="tabBtnOpportunities" onclick="switchVolTab('opportunities')">
+            <i class="fa-solid fa-grip"></i> Event Role Postings (<?= count($opportunities) ?>)
+          </button>
+          <button class="vol-nav-tab" id="tabBtnVerifiedRoster" onclick="switchVolTab('verifiedRoster')">
+            <i class="fa-solid fa-clipboard-check"></i> Verified Volunteers Roster (<?= count($adviser_verified_list) ?>)
+          </button>
+        </div>
+
+        <?php if (in_array($sess_role, ['club_adviser', 'ssc', 'admin'])): ?>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; flex-shrink:0; padding-bottom:6px;">
+          <!-- Export Report Dropdown Group -->
+          <div class="btn-export-group">
+            <button type="button" class="btn-export-main" style="height:36px; padding:0 14px; font-size:0.8rem; border-radius:8px;" onclick="toggleExportMenu('volunteerExportMenu')" title="Download volunteer records in PDF, Excel, or CSV">
+              <i class="fa-solid fa-cloud-arrow-down"></i>
+              <span>Export Volunteers</span>
+              <i class="fa-solid fa-chevron-down" style="font-size:0.65rem; margin-left:3px;"></i>
+            </button>
+            <div id="volunteerExportMenu" class="export-dropdown-menu">
+              <div class="export-menu-header">
+                Volunteer Records Export
+              </div>
+              <button type="button" class="export-menu-item" onclick="exportVolunteerPDF()">
+                <i class="fa-solid fa-file-pdf" style="color:#dc2626; font-size:1.05rem;"></i>
+                <div>
+                  <div class="export-item-title">Download PDF (.pdf)</div>
+                  <div class="export-item-sub">Formal print-ready accreditation report</div>
+                </div>
+              </button>
+              <button type="button" class="export-menu-item" onclick="exportVolunteerExcel()">
+                <i class="fa-solid fa-file-excel" style="color:#16a34a; font-size:1.05rem;"></i>
+                <div>
+                  <div class="export-item-title">Download Excel (.xlsx)</div>
+                  <div class="export-item-sub">Structured spreadsheet format</div>
+                </div>
+              </button>
+              <button type="button" class="export-menu-item" onclick="exportVolunteerCSV()">
+                <i class="fa-solid fa-file-csv" style="color:#2563eb; font-size:1.05rem;"></i>
+                <div>
+                  <div class="export-item-title">Download CSV (.csv)</div>
+                  <div class="export-item-sub">Raw UTF-8 delimited dataset</div>
+                </div>
+              </button>
+              <div class="export-menu-divider"></div>
+              <button type="button" class="export-menu-item" onclick="printVolunteerReport()">
+                <i class="fa-solid fa-print" style="color:#475569; font-size:1.05rem;"></i>
+                <div>
+                  <div class="export-item-title">Print Volunteer Roster</div>
+                  <div class="export-item-sub">Official paper / browser printout</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <button class="vol-btn vol-btn-primary" style="height:36px; padding:0 14px; font-size:0.8rem; border-radius:8px;" onclick="openCreateOpportunityModal()">
+            <i class="fa-solid fa-plus-circle"></i> Post Volunteer Role
+          </button>
+        </div>
+        <?php endif; ?>
       </div>
       <?php endif; ?>
 

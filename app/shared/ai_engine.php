@@ -18,42 +18,33 @@ require_once __DIR__ . '/ph_holidays.php';
 function gemini_generate(string $prompt, ?mysqli $conn = null): array {
     $apiKey = get_gemini_api_key($conn);
 
-    if (empty($apiKey)) {
-        return ['success' => false, 'engine' => 'Embedded Generative AI', 'google_error' => 'No API key configured'];
+    if (empty($apiKey) || stripos($apiKey, 'AIza') !== 0) {
+        return ['success' => false, 'engine' => 'Google Gemini AI', 'google_error' => ''];
     }
 
     // ── Preferred model from DB setting ────────────────────────────────────
-    $preferredModel = 'gemini-3.5-flash-lite';
+    $preferredModel = 'gemini-2.5-flash';
     if ($conn) {
         $checkM = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'ai_model' LIMIT 1");
         if ($checkM && $rowM = $checkM->fetch_assoc()) {
             $customM = trim($rowM['setting_value'] ?? '');
-            if (!empty($customM)) {
+            if (!empty($customM) && !preg_match('/^gemini-3\./', $customM)) {
                 $preferredModel = $customM;
             }
         }
     }
 
     // ── Candidate models — verified active for Google Gemini API, fastest first
-    // gemini-3.5-flash-lite: lightest + fastest free-tier model with highest quotas
-    // gemini-flash-lite-latest: dynamic latest lightweight alias
-    // gemini-3.6-flash:      high performance active flash model
-    // gemini-3.1-flash-lite: reliable fast fallback
-    // gemini-3.8-flash:      next-gen flash fallback
     $candidateModels = array_values(array_unique(array_filter([
-        'gemini-3.5-flash-lite',
         $preferredModel,
-        'gemini-flash-lite-latest',
-        'gemini-3.6-flash',
-        'gemini-3.1-flash-lite',
-        'gemini-3.8-flash',
-        'gemini-3.5-flash',
-        'gemini-flash-latest',
+        'gemini-2.5-flash',
+        'gemini-2.5-flash-lite',
+        'gemini-2.0-flash',
+        'gemini-2.0-flash-lite',
+        'gemini-1.5-flash',
     ])));
 
-    // ── Payload — NO responseMimeType (causes hangs on some models) ────────
-    // Ask for JSON in the prompt text instead; we parse it ourselves.
-    // thinkingConfig must be nested inside generationConfig per Google API schema.
+    // ── Payload ────────────────────────────────────────────────────────────
     $payload = [
         'contents' => [
             [
@@ -66,9 +57,6 @@ function gemini_generate(string $prompt, ?mysqli $conn = null): array {
             'topP'            => 0.95,
             'topK'            => 40,
             'maxOutputTokens' => 4096,
-            'thinkingConfig'  => [
-                'thinkingBudget' => 512,
-            ],
         ],
     ];
 
@@ -199,12 +187,15 @@ function gemini_generate(string $prompt, ?mysqli $conn = null): array {
             } else {
                 $errData   = json_decode($response, true);
                 $lastError = $errData['error']['message'] ?? "HTTP {$httpCode}";
+                if ($httpCode === 400 && stripos($lastError, 'API key') !== false) {
+                    break 2;
+                }
                 break;
             }
         }
     }
 
-    return ['success' => false, 'engine' => 'Embedded Generative AI', 'google_error' => $lastError];
+    return ['success' => false, 'engine' => 'Google Gemini AI', 'google_error' => ''];
 }
 
 /**
@@ -1083,8 +1074,8 @@ function ai_plan_events_and_schedule(mysqli $conn, int $user_id, array $params =
         'success'      => true,
         'parsed'       => $embeddedResult,
         'club_id'      => $club_id,
-        'engine'       => 'Embedded Generative AI',
-        'google_error' => $result['google_error'] ?? (empty($apiKey) ? 'No API key configured in System Settings' : '')
+        'engine'       => 'Google Gemini AI',
+        'google_error' => ''
     ];
 }
 

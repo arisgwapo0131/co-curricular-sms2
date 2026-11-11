@@ -1234,13 +1234,6 @@ if ($is_admin_view) {
             </p>
           </div>
         </div>
-        <div style="display:flex; align-items:center; gap:10px;">
-          <?php if (in_array($sess_role, ['club_adviser', 'admin', 'super_admin', 'staff'], true) || can('budget.create.own')): ?>
-          <button class="btn-create-req" onclick="openNewRequestModal()" style="height:40px; padding:0 18px; border-radius:10px; font-weight:700;">
-            <i class="fa-solid fa-plus"></i> New Budget Requisition
-          </button>
-          <?php endif; ?>
-        </div>
       </div>
 
       <div class="content-body">

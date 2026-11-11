@@ -646,11 +646,6 @@ if ($res_tpl) {
                 <i class="fa-solid fa-bullhorn" style="font-size:2rem; color:#94a3b8; margin-bottom:10px; display:block;"></i>
                 <h3 style="margin:0; font-size:1.05rem; color:#1e293b;">No Announcements Found</h3>
                 <p style="margin:4px 0 0; font-size:0.78rem; color:#64748b;">There are currently no announcements matching your role or filter criteria.</p>
-                <?php if (in_array($sess_role, ['admin', 'ssc', 'club_adviser'])): ?>
-                  <button type="button" onclick="openCreateModal()" class="card-btn" style="margin-top:14px; background:#2563eb; color:#fff; padding:6px 14px; font-size:0.75rem; border-radius:6px; cursor:pointer;">
-                    <i class="fa-solid fa-plus-circle"></i> Create Announcement
-                  </button>
-                <?php endif; ?>
               </div>
             <?php else: ?>
               <?php foreach ($announcements as $ann): ?>
